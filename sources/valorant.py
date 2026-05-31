@@ -1,14 +1,15 @@
 """Valorant fetcher — VCT league + international tournaments only.
 
-Mirrors the filter logic in Sherman's PythonTest VCT pipeline: only matches
-from events declared in `MoreTestingMaybeFiles.ALL_EVENTS` (the regional
+Only matches from events declared in `_vct_events.ALL_EVENTS` (the regional
 leagues — Americas / EMEA / Pacific / CN — and international Masters /
 Champions) appear in the calendar. No Game Changers, Challengers, qualifiers,
 or random EWC events.
 
 How it works:
-  1. Import `live_events_today` + `ALL_EVENTS` from PythonTest so the event
-     list stays in sync with that project (single source of truth).
+  1. `live_events_today()` returns the events currently within their date
+     window (with some pre/post-roll). Pulled from the bundled
+     `_vct_events.py` so deploys (Railway, GitHub Actions, etc.) don't depend
+     on any user-local file.
   2. For each live event with at least one populated VLR region URL, scrape
      /event/matches/{vlr_id}/{slug}/ for upcoming matches.
   3. For each upcoming match, fetch its match page once to read the
@@ -19,28 +20,15 @@ How it works:
 from __future__ import annotations
 
 import re
-import sys
 import time
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
 import httpx
 from bs4 import BeautifulSoup
 
 from db import Event, get_events
 from timeutil import to_utc_iso
-
-# Reuse Sherman's curated event list and live-window logic.
-PYTHONTEST_PATH = Path("/Users/benny_es1/PythonTest")
-if str(PYTHONTEST_PATH) not in sys.path:
-    sys.path.insert(0, str(PYTHONTEST_PATH))
-
-try:
-    from MoreTestingMaybeFiles import ALL_EVENTS, live_events_today, _parse_vlr_stats_url  # type: ignore
-    _HAS_VCT_CONFIG = True
-except Exception as _imp_err:
-    _HAS_VCT_CONFIG = False
-    _IMPORT_ERR = _imp_err
+from sources._vct_events import ALL_EVENTS, live_events_today, _parse_vlr_stats_url  # noqa: F401
 
 
 HEADERS = {
@@ -59,10 +47,6 @@ INTER_REQUEST_DELAY = 0.2  # seconds between VLR fetches (polite)
 
 def fetch_valorant(source_args: dict, days_ahead: int) -> list[Event]:
     league_id = source_args.get("league_id_in_db") or "valorant"
-    if not _HAS_VCT_CONFIG:
-        raise RuntimeError(
-            f"Could not import VCT config from {PYTHONTEST_PATH}: {_IMPORT_ERR}"
-        )
 
     # 1) Collect (vlr_id, slug, region, event_label) targets for events
     #    currently in their live window.
