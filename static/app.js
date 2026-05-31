@@ -148,12 +148,18 @@
       items.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
 
       // Level assignment (greedy lowest-unused level among prior overlaps).
+      // Tolerance: a 2 px slack so a carryover overnighter ending exactly
+      // at midnight clusters with a tile starting exactly at midnight (their
+      // pixel rects touch but don't strictly overlap by default — which left
+      // them in independent clusters, both at level 0, visually overlapping).
+      const OVERLAP_TOL = 2;
+      function _vOverlap(a, b) {
+        return a.bottom + OVERLAP_TOL > b.top && a.top < b.bottom + OVERLAP_TOL;
+      }
       items.forEach((item, i) => {
         const taken = new Set();
         for (let j = 0; j < i; j++) {
-          if (items[j].bottom > item.top && items[j].top < item.bottom) {
-            taken.add(items[j].level);
-          }
+          if (_vOverlap(items[j], item)) taken.add(items[j].level);
         }
         let level = 0;
         while (taken.has(level)) level++;
@@ -164,9 +170,7 @@
       const adj = items.map(() => []);
       for (let i = 0; i < items.length; i++) {
         for (let j = i + 1; j < items.length; j++) {
-          if (items[i].bottom > items[j].top && items[i].top < items[j].bottom) {
-            adj[i].push(j); adj[j].push(i);
-          }
+          if (_vOverlap(items[i], items[j])) { adj[i].push(j); adj[j].push(i); }
         }
       }
       const clusters = [];
