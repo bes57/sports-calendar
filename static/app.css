@@ -340,17 +340,15 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
   transform-origin: center center;
 }
 
-/* While the user is mid-navigation (button click → eventsSet), hide the
-   ENTIRE calendar grid (not just events). The previous per-event opacity
-   approach was unreliable because FullCalendar re-creates DOM elements
-   between datesSet and eventsSet, and any new tile mounted in that window
-   bypassed our hide. Hiding the whole grid covers that gap. When the body
-   class clears, the grid fades back in via the transition below and the
-   per-event scale-in animation runs naturally inside it. */
-#calendar { transition: opacity 180ms ease-out; }
+/* Mid-navigation, fade the entire calendar grid out → invisible while FC
+   navigates → fade back in once events for the new range are settled.
+   Both directions use the same easing/duration so the transition reads as
+   a deliberate "swap" rather than a flash. */
+#calendar {
+  transition: opacity 220ms ease-out;
+}
 body.kcal-navigating #calendar {
   opacity: 0;
-  transition: opacity 0ms;
   pointer-events: none;
 }
 

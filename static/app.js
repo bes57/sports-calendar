@@ -533,12 +533,17 @@
     },
     eventsSet: () => {
       scheduleUniformizeWeek();
-      // FC has finished mounting tiles for the new range — drop the
-      // navigation class so the CSS animation rule kicks back in fresh on
-      // every visible tile (carryovers + newly fetched, synchronized).
-      requestAnimationFrame(() => {
+      // FC has finished mounting tiles for the new range. Wait long enough
+      // that the fade-OUT animation has had time to complete, then drop the
+      // class so the grid fades back IN with the new content. If the user's
+      // navigation was very fast (cache hit, ~50ms), this delays the reveal
+      // to keep the fade-out smooth; if it was slow (>fade duration), we
+      // reveal immediately.
+      const elapsed = performance.now() - (window.__kcalNavStart || 0);
+      const wait = Math.max(0, 220 - elapsed);
+      setTimeout(() => {
         document.body.classList.remove('kcal-navigating');
-      });
+      }, wait);
     }
     };  // end buildCalendarOptions return
   }
@@ -612,18 +617,21 @@
   }
 
   // Capture-phase click listener fires BEFORE FullCalendar's own button
-  // handler. Set body.kcal-navigating which, via CSS, hides every .fc-event
-  // tile (current AND any FC mounts during navigation). eventsSet removes
-  // the class so all tiles reveal + animate together. Safety timeout in
-  // case eventsSet doesn't fire (e.g. no event data change).
+  // handler. The CSS fades the grid out smoothly; we only reveal it again
+  // AFTER the fade-out has had time to complete AND after FC has settled
+  // the new range (eventsSet fires). Safety timeout in case eventsSet
+  // never fires (e.g. navigation with no event-data change).
+  const FADE_OUT_MS = 220;
+  window.__kcalNavStart = 0;
   let _navSafetyTimer = null;
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.fc-button')) return;
     document.body.classList.add('kcal-navigating');
+    window.__kcalNavStart = performance.now();
     clearTimeout(_navSafetyTimer);
     _navSafetyTimer = setTimeout(() => {
       document.body.classList.remove('kcal-navigating');
-    }, 1200);
+    }, 1500);
   }, /*capture=*/true);
 
   // Anchor FC's "+N more" popover so its BOTTOM edge sits at the bottom of
