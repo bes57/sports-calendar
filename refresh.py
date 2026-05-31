@@ -44,7 +44,7 @@ def refresh_league(league_id: str, days_ahead: int) -> tuple[int, str]:
 def refresh_all(days_ahead: int | None = None) -> dict:
     init_db()
     if days_ahead is None:
-        days_ahead = int(os.getenv("FETCH_DAYS_AHEAD", "30"))
+        days_ahead = int(os.getenv("FETCH_DAYS_AHEAD", "180"))
     results = {}
     total = 0
     for league in LEAGUES:

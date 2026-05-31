@@ -217,7 +217,7 @@ async def api_refresh(background_tasks: BackgroundTasks, league: str | None = No
         background_tasks.add_task(
             refresh_league,
             league,
-            int(os.getenv("FETCH_DAYS_AHEAD", "30")),
+            int(os.getenv("FETCH_DAYS_AHEAD", "180")),
         )
         return {"ok": True, "queued": league}
     background_tasks.add_task(refresh_all)
@@ -228,7 +228,7 @@ async def api_refresh(background_tasks: BackgroundTasks, league: str | None = No
 async def api_refresh_sync(league: str | None = None):
     """Refresh and wait — useful for manual testing."""
     if league:
-        n, msg = refresh_league(league, int(os.getenv("FETCH_DAYS_AHEAD", "30")))
+        n, msg = refresh_league(league, int(os.getenv("FETCH_DAYS_AHEAD", "180")))
         return {"league": league, "count": n, "message": msg}
     return refresh_all()
 

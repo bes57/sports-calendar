@@ -57,7 +57,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "basketball", "league": "nba"},
         duration_hours=3.0,
         group="Basketball",
-        fetch_days_ahead=180,
     ),
     League(
         id="wnba", name="WNBA", full_name="Women's National Basketball Association",
@@ -72,7 +71,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "basketball", "league": "mens-college-basketball"},
         duration_hours=2.5,
         group="Basketball",
-        fetch_days_ahead=180,
     ),
     League(
         id="ncaaw", name="NCAAW", full_name="NCAA Women's Basketball",
@@ -80,7 +78,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "basketball", "league": "womens-college-basketball"},
         duration_hours=2.5,
         group="Basketball",
-        fetch_days_ahead=180,
     ),
     League(
         id="nba_draft", name="NBA Draft", full_name="NBA Draft",
@@ -95,7 +92,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "hockey", "league": "nhl"},
         duration_hours=2.5,
         group="Hockey",
-        fetch_days_ahead=180,
     ),
     League(
         id="ufc", name="UFC", full_name="Ultimate Fighting Championship",
@@ -123,7 +119,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "football", "league": "nfl"},
         duration_hours=3.5,
         group="Football",
-        fetch_days_ahead=180,  # season-long lookahead so off-season still shows schedule
     ),
     League(
         id="ncaaf", name="NCAAF", full_name="NCAA Football",
@@ -131,7 +126,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "football", "league": "college-football"},
         duration_hours=3.5,
         group="Football",
-        fetch_days_ahead=180,
     ),
     League(
         id="ipl", name="IPL", full_name="Indian Premier League (Cricket)",
@@ -160,10 +154,6 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "soccer", "league": "usa.1"},
         duration_hours=2.0,
         group="Soccer",
-        # 2026 has a long mid-season break for the FIFA World Cup
-        # (~May 25 → July 16). 90-day lookahead so July games still surface
-        # during the off-window.
-        fetch_days_ahead=90,
     ),
     League(
         id="wc", name="World Cup", full_name="FIFA World Cup",
