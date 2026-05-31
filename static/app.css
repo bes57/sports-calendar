@@ -340,14 +340,18 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
   transform-origin: center center;
 }
 
-/* While the user is mid-navigation (button click → eventsSet), force every
-   event tile invisible AND suppress its mount animation. The instant the
-   body class is removed in eventsSet, the animation rule above kicks back
-   in fresh — so carryover overnighters and freshly-fetched tiles animate
-   together rather than flashing in two waves. */
-body.kcal-navigating .fc-event:not(.fc-list-event) {
-  opacity: 0 !important;
-  animation: none !important;
+/* While the user is mid-navigation (button click → eventsSet), hide the
+   ENTIRE calendar grid (not just events). The previous per-event opacity
+   approach was unreliable because FullCalendar re-creates DOM elements
+   between datesSet and eventsSet, and any new tile mounted in that window
+   bypassed our hide. Hiding the whole grid covers that gap. When the body
+   class clears, the grid fades back in via the transition below and the
+   per-event scale-in animation runs naturally inside it. */
+#calendar { transition: opacity 180ms ease-out; }
+body.kcal-navigating #calendar {
+  opacity: 0;
+  transition: opacity 0ms;
+  pointer-events: none;
 }
 
 /* Month-view day cells grow alongside the events so the row breathes in
