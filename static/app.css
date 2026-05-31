@@ -328,8 +328,18 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
 .fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent); }
 .fc .fc-day-today { background: rgba(37,99,235,0.04) !important; }
 
-/* No fade animation on mount — tiles appear at full opacity instantly so
-   there's no blank-then-fade-in lag. */
+/* Subtle, quick ease-in for newly-mounted event tiles. Starts at 70%
+   opacity (visible from frame 1, no blank moment) and ramps to 100% over
+   140ms — fast enough to feel immediate, smooth enough to avoid a hard
+   pop. Transform stays unset so it doesn't fight the existing :hover
+   translateY. */
+@keyframes kcal-event-in {
+  from { opacity: 0.7; }
+  to   { opacity: 1; }
+}
+.fc-event {
+  animation: kcal-event-in 140ms ease-out both;
+}
 
 /* --- Time grid --- */
 .fc .fc-timegrid-slot { height: 42px; border-color: var(--border); }
