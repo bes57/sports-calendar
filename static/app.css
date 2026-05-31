@@ -328,17 +328,8 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
 .fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent); }
 .fc .fc-day-today { background: rgba(37,99,235,0.04) !important; }
 
-/* --- Smooth fade-in for newly-mounted event tiles ---------------------
-   Triggers any time FullCalendar adds an event element to the DOM (month
-   navigation, view switch, league toggle). Pure opacity + a tiny rise so
-   it doesn't conflict with the existing :hover translateY effect. */
-@keyframes kcal-event-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.fc-event {
-  animation: kcal-event-in 240ms ease-out both;
-}
+/* No fade animation on mount — tiles appear at full opacity instantly so
+   there's no blank-then-fade-in lag. */
 
 /* --- Time grid --- */
 .fc .fc-timegrid-slot { height: 42px; border-color: var(--border); }
