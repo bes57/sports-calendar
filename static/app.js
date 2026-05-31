@@ -12,7 +12,10 @@
   // Wiring the change handler happens AFTER the calendar is instantiated
   // (further down) so we can call calendar.updateSize() to make FC re-measure
   // slot heights and re-position events against them.
-  const compactSaved = localStorage.getItem(COMPACT_KEY) === '1';
+  // Default to compact (fit 24h on screen) on first visit. Once the user
+  // toggles it off (saves '0'), respect that choice on subsequent loads.
+  const compactStored = localStorage.getItem(COMPACT_KEY);
+  const compactSaved = compactStored === null ? true : compactStored === '1';
   if (compactSaved) document.body.classList.add('compact-grid');
   const compactToggle = document.getElementById('compact-toggle');
   if (compactToggle) compactToggle.checked = compactSaved;

@@ -18,7 +18,7 @@
       <ul class="league-list">
         {% for group_name, group_leagues in grouped_leagues %}
         <li class="league-group-item">
-          <div class="league-group" data-open="true" data-group="{{ group_name }}">
+          <div class="league-group" data-open="false" data-group="{{ group_name }}">
             <div class="group-row">
               <input type="checkbox" class="group-check" data-group="{{ group_name }}" checked />
               <button type="button" class="group-toggle" aria-label="Toggle {{ group_name }}">
