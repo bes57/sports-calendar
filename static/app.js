@@ -430,29 +430,19 @@
         displayEventTime: true,
       },
     },
-    // Fetch a window WIDER than the visible range (±2 months around it).
-    // FullCalendar's lazyFetching (on by default) then reuses what we already
-    // have when the user nudges to an adjacent month — no refetch, no blip.
-    // Only when navigation lands outside the cached window does FC ask again.
     events: async (info, success, failure) => {
       try {
         const active = currentActive();
         if (active.length === 0) return success([]);
-        const PAD_MONTHS = 2;
-        const start = new Date(info.start);
-        start.setMonth(start.getMonth() - PAD_MONTHS);
-        const end = new Date(info.end);
-        end.setMonth(end.getMonth() + PAD_MONTHS);
         const url = new URL('/api/events', window.location.origin);
-        url.searchParams.set('start', start.toISOString());
-        url.searchParams.set('end', end.toISOString());
+        url.searchParams.set('start', info.startStr);
+        url.searchParams.set('end', info.endStr);
         url.searchParams.set('leagues', active.join(','));
         const res = await fetch(url);
         const data = await res.json();
         success(data);
       } catch (e) { failure(e); }
     },
-    lazyFetching: true,
     eventClick: (info) => {
       info.jsEvent.preventDefault();
       // Agenda items are read-only — no popover, no navigation.
