@@ -8,6 +8,16 @@
   const TZ_KEY = 'sports-cal-tz';
   const COMPACT_KEY = 'sports-cal-compact';
 
+  // On a hard refresh / reload, wipe the saved view + league filter + compact
+  // toggle so the app opens with its standard defaults: 3 Days, all leagues
+  // selected, Fit 24h on. Timezone persists since that's a stable user pref.
+  const navType = (performance.getEntriesByType('navigation')[0] || {}).type;
+  if (navType === 'reload') {
+    localStorage.removeItem(VIEW_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(COMPACT_KEY);
+  }
+
   // Compact-grid toggle — squashes slots so 24h fit without scrolling.
   // Wiring the change handler happens AFTER the calendar is instantiated
   // (further down) so we can call calendar.updateSize() to make FC re-measure
