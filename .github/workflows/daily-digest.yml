@@ -17,6 +17,12 @@ concurrency:
   group: daily-digest
   cancel-in-progress: false
 
+# Opt actions/checkout + actions/setup-python into Node 24 now, silencing
+# the "Node 20 deprecated" warning. Node 24 becomes default Jun 16 2026
+# regardless; this just gets us there early without breakage.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   digest:
     runs-on: ubuntu-latest
