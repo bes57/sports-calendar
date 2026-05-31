@@ -674,23 +674,71 @@
     });
   }
 
+  // Reflect each group-checkbox's state from its child league-checkboxes:
+  // all checked → checked, all unchecked → unchecked, mixed → indeterminate.
+  function syncGroupCheckboxes() {
+    document.querySelectorAll('.group-check').forEach(gc => {
+      const group = gc.dataset.group;
+      const children = document.querySelectorAll(
+        `.league-check[data-group="${group}"]`
+      );
+      const total = children.length;
+      const checked = Array.from(children).filter(c => c.checked).length;
+      if (checked === 0) {
+        gc.checked = false;
+        gc.indeterminate = false;
+      } else if (checked === total) {
+        gc.checked = true;
+        gc.indeterminate = false;
+      } else {
+        gc.checked = false;
+        gc.indeterminate = true;
+      }
+    });
+  }
+
   // League filter wiring
   document.querySelectorAll('.league-check').forEach(c => {
     c.addEventListener('change', () => {
       writeActive(currentActive());
+      syncGroupCheckboxes();
       calendar.refetchEvents();
+    });
+  });
+  // Group checkbox: toggle every league in the group.
+  document.querySelectorAll('.group-check').forEach(gc => {
+    gc.addEventListener('change', () => {
+      const group = gc.dataset.group;
+      const target = gc.checked;
+      document.querySelectorAll(
+        `.league-check[data-group="${group}"]`
+      ).forEach(c => { c.checked = target; });
+      writeActive(currentActive());
+      calendar.refetchEvents();
+    });
+  });
+  // Group toggle: expand/collapse the sublist.
+  document.querySelectorAll('.group-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const groupEl = btn.closest('.league-group');
+      const open = groupEl.dataset.open !== 'false';
+      groupEl.dataset.open = open ? 'false' : 'true';
     });
   });
   document.getElementById('all-leagues').addEventListener('click', () => {
     document.querySelectorAll('.league-check').forEach(c => c.checked = true);
     writeActive(currentActive());
+    syncGroupCheckboxes();
     calendar.refetchEvents();
   });
   document.getElementById('no-leagues').addEventListener('click', () => {
     document.querySelectorAll('.league-check').forEach(c => c.checked = false);
     writeActive(currentActive());
+    syncGroupCheckboxes();
     calendar.refetchEvents();
   });
+  // Initial sync — saved state might have left groups partially checked.
+  syncGroupCheckboxes();
 
   // Refresh button
   const refreshBtn = document.getElementById('refresh-btn');

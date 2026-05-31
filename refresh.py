@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone, timedelta
 
-from db import init_db, upsert_events, record_refresh, purge_old
+from db import init_db, upsert_events, record_refresh, purge_old, prune_league_to
 from leagues import LEAGUES, by_id
 from sources import get_fetcher
 
@@ -21,9 +21,20 @@ def refresh_league(league_id: str, days_ahead: int) -> tuple[int, str]:
         args["league_id_in_db"] = league.id
         args["duration_hours"] = league.duration_hours
         args["multi_day"] = league.multi_day
-        events = fetcher(args, days_ahead)
+        # Per-league lookahead override — used for leagues whose season is
+        # months away (NFL, NBA, etc.) so the schedule still surfaces during
+        # the off-season window.
+        effective_days = league.fetch_days_ahead or days_ahead
+        events = fetcher(args, effective_days)
         n = upsert_events(events)
-        record_refresh(league.id, True, f"{n} events")
+        # Drop DB rows for this league whose source_id is no longer in the
+        # fetcher's output. Without this, source-side changes (e.g. a stricter
+        # filter, a cancelled/relocated game) leave stale rows on the calendar.
+        purged = prune_league_to(league.id, {e.source_id for e in events})
+        msg = f"{n} events"
+        if purged:
+            msg += f" ({purged} pruned)"
+        record_refresh(league.id, True, msg)
         return n, "ok"
     except Exception as exc:
         record_refresh(league.id, False, str(exc)[:300])

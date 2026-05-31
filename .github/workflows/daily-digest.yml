@@ -1,0 +1,40 @@
+name: Daily K-Cal digest
+
+# Two schedules:
+#   - Every 5 minutes (TEST window). Delete this `*/5` line once the test
+#     window is over so you stop getting test pushes.
+#   - Daily at 11:00 UTC = 7 AM America/New_York (EDT). In winter (EST,
+#     UTC-5) this fires at 6 AM local; accept the DST drift or split into
+#     summer/winter crons later.
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # TEST — delete after Mon Jun 1 ~5 AM ET
+    - cron: '0 11 * * *'    # Production daily 7 AM EDT (11 UTC)
+  workflow_dispatch: {}     # Allows you to fire it manually from the Actions tab
+
+# Prevent overlapping runs so a slow refresh doesn't pile up.
+concurrency:
+  group: daily-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Send digest
+        env:
+          TZ: America/New_York
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: https://ntfy.sh
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          FETCH_DAYS_AHEAD: '30'
+          K_CAL_URL: ${{ secrets.K_CAL_URL }}
+        run: python send_today_digest.py

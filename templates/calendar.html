@@ -16,13 +16,28 @@
         <button id="no-leagues" class="link-btn">None</button>
       </div>
       <ul class="league-list">
-        {% for lg in leagues %}
-        <li>
-          <label class="league-row">
-            <input type="checkbox" class="league-check" data-league="{{ lg.id }}" checked />
-            <span class="league-swatch" style="background: {{ lg.color }};"></span>
-            <span class="league-name">{{ lg.name }}</span>
-          </label>
+        {% for group_name, group_leagues in grouped_leagues %}
+        <li class="league-group-item">
+          <div class="league-group" data-open="true" data-group="{{ group_name }}">
+            <div class="group-row">
+              <input type="checkbox" class="group-check" data-group="{{ group_name }}" checked />
+              <button type="button" class="group-toggle" aria-label="Toggle {{ group_name }}">
+                <span class="group-chevron" aria-hidden="true">▶</span>
+                <span class="group-name">{{ group_name }}</span>
+              </button>
+            </div>
+            <ul class="league-sublist">
+              {% for lg in group_leagues %}
+              <li>
+                <label class="league-row">
+                  <input type="checkbox" class="league-check" data-league="{{ lg.id }}" data-group="{{ group_name }}" checked />
+                  <span class="league-swatch" style="background: {{ lg.color }};"></span>
+                  <span class="league-name">{{ lg.name }}</span>
+                </label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
         </li>
         {% endfor %}
       </ul>

@@ -59,6 +59,12 @@ def _fetch_range(sport: str, league: str, days_ahead: int) -> list[dict]:
                     "limit": "200",
                 }
                 r = client.get(url, params=params)
+                # ESPN returns 404 for date ranges that fall entirely outside
+                # a league's season (e.g. NCAAM in June). That's not an error
+                # for us — it's "no games this window", so move on.
+                if r.status_code == 404:
+                    cursor = chunk_end + timedelta(days=1)
+                    continue
                 r.raise_for_status()
                 data = r.json()
                 raw_events.extend(data.get("events", []) or [])
@@ -143,11 +149,20 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
     league_id = source_args.get("league_id_in_db") or _league_id_from_args(sport, league)
     duration_hours = source_args.get("duration_hours")  # league override
     multi_day = bool(source_args.get("multi_day"))
+    # Optional case-insensitive filter on event note headlines (e.g. CWS games
+    # inside the broader NCAA baseball feed are tagged with notes containing
+    # "Men's College World Series"). Drop anything that doesn't match.
+    note_contains = source_args.get("note_contains")
     raw = _fetch_range(sport, league, days_ahead)
     out: list[Event] = []
     for e in raw:
         comps = e.get("competitions") or []
         comp = comps[0] if comps else {}
+        if note_contains:
+            notes = comp.get("notes") or []
+            blob = " ".join((n.get("headline") or "") for n in notes).lower()
+            if note_contains.lower() not in blob:
+                continue
         start = e.get("date") or comp.get("date")
         if not start:
             continue

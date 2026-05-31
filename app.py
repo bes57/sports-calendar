@@ -13,9 +13,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from db import init_db, get_events, get_refresh_status
-from leagues import LEAGUES, by_id
+from leagues import LEAGUES, by_id, grouped as grouped_leagues
 from refresh import refresh_all, refresh_league
-from digest import build_digest_text, build_digest_html, send_digest
+from digest import build_digest_text, build_digest_html, build_digest_sms, send_digest
 from scheduler import start_scheduler
 
 
@@ -87,6 +87,7 @@ async def home(request: Request):
         {
             "request": request,
             "leagues": LEAGUES,
+            "grouped_leagues": grouped_leagues(),
             "leagues_json": [
                 {"id": l.id, "name": l.name, "color": l.color} for l in LEAGUES
             ],
@@ -223,6 +224,8 @@ async def api_refresh_status():
 async def api_digest_preview(format: str = "text"):
     if format == "html":
         return HTMLResponse(build_digest_html())
+    if format == "sms":
+        return PlainTextResponse(build_digest_sms())
     return PlainTextResponse(build_digest_text())
 
 

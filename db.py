@@ -210,3 +210,23 @@ def purge_old(before_iso: str) -> int:
             (before_iso,),
         )
         return cur.rowcount
+
+
+def prune_league_to(league_id: str, keep_source_ids: set[str]) -> int:
+    """Delete rows for `league_id` whose source_id is not in `keep_source_ids`.
+    Used after a refresh to drop events the upstream source no longer returns
+    (e.g. when a stricter filter has been applied, or a game was cancelled)."""
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT source_id FROM events WHERE league = ?",
+            (league_id,),
+        ).fetchall()
+        to_delete = [r["source_id"] for r in rows if r["source_id"] not in keep_source_ids]
+        if not to_delete:
+            return 0
+        placeholders = ",".join("?" * len(to_delete))
+        cur = conn.execute(
+            f"DELETE FROM events WHERE league = ? AND source_id IN ({placeholders})",
+            (league_id, *to_delete),
+        )
+        return cur.rowcount
