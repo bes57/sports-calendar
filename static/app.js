@@ -523,11 +523,6 @@
       document.body.dataset.view = info.view.type;
       updateTodayButtonText(info.view.type);
       scheduleUniformizeWeek();
-      // Hide every existing event tile (backup for direct calendar.changeView
-      // calls that don't go through a button click).
-      document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
-        el.style.opacity = '0';
-      });
     },
     viewDidMount: (info) => {
       // Canonical hook for view-class management — fires every time a view
@@ -538,15 +533,11 @@
     },
     eventsSet: () => {
       scheduleUniformizeWeek();
-      // Reveal hidden carryovers + restart the mount animation on every tile
-      // so the whole grid eases in together (carryover + newly fetched).
+      // FC has finished mounting tiles for the new range — drop the
+      // navigation class so the CSS animation rule kicks back in fresh on
+      // every visible tile (carryovers + newly fetched, synchronized).
       requestAnimationFrame(() => {
-        document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
-          el.style.opacity = '';
-          el.style.animation = 'none';
-          void el.offsetWidth;     // force reflow so the assignment below restarts the animation
-          el.style.animation = '';
-        });
+        document.body.classList.remove('kcal-navigating');
       });
     }
     };  // end buildCalendarOptions return
@@ -620,17 +611,19 @@
     mountCalendar(on, /*preserveDate=*/true);
   }
 
-  // Capture-phase click listener — fires BEFORE FullCalendar's own button
-  // handler. The moment a nav button (prev / next / today / view-switch) is
-  // clicked, hide every currently-mounted event tile so cross-range carry-
-  // overs (overnight games that span the navigation boundary) don't sit
-  // visibly present while the new range is fetching. eventsSet reveals them
-  // and replays the mount animation once FC has settled the new range.
+  // Capture-phase click listener fires BEFORE FullCalendar's own button
+  // handler. Set body.kcal-navigating which, via CSS, hides every .fc-event
+  // tile (current AND any FC mounts during navigation). eventsSet removes
+  // the class so all tiles reveal + animate together. Safety timeout in
+  // case eventsSet doesn't fire (e.g. no event data change).
+  let _navSafetyTimer = null;
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.fc-button')) return;
-    document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
-      el.style.opacity = '0';
-    });
+    document.body.classList.add('kcal-navigating');
+    clearTimeout(_navSafetyTimer);
+    _navSafetyTimer = setTimeout(() => {
+      document.body.classList.remove('kcal-navigating');
+    }, 1200);
   }, /*capture=*/true);
 
   // Anchor FC's "+N more" popover so its BOTTOM edge sits at the bottom of

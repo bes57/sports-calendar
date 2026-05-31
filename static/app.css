@@ -340,6 +340,16 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
   transform-origin: center center;
 }
 
+/* While the user is mid-navigation (button click → eventsSet), force every
+   event tile invisible AND suppress its mount animation. The instant the
+   body class is removed in eventsSet, the animation rule above kicks back
+   in fresh — so carryover overnighters and freshly-fetched tiles animate
+   together rather than flashing in two waves. */
+body.kcal-navigating .fc-event:not(.fc-list-event) {
+  opacity: 0 !important;
+  animation: none !important;
+}
+
 /* Month-view day cells grow alongside the events so the row breathes in
    as content lands instead of looking static while tiles inflate inside. */
 @keyframes kcal-cell-in {
