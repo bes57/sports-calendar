@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Sports Calendar{% endblock %}</title>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version }}" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <a href="/">Sports Calendar</a>
+    </div>
+    <nav>
+      <a href="/">Calendar</a>
+      <a href="/settings">Settings</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

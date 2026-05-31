@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Settings — Sports Calendar{% endblock %}
+{% block content %}
+<div class="settings-wrap">
+  <h1>Settings</h1>
+
+  <section class="card">
+    <h2>Digest</h2>
+    <p class="muted">Edit <code>.env</code> and restart to change these.</p>
+    <table class="kv">
+      <tr><td>Timezone</td><td>{{ tz }}</td></tr>
+      <tr><td>Send time</td><td>{{ digest_time }}</td></tr>
+      <tr><td>Email to</td><td>{{ digest_email or "(not configured)" }}</td></tr>
+    </table>
+    <div class="actions">
+      <a class="primary-btn" href="/api/digest/preview?format=html" target="_blank">Preview today's digest</a>
+      <button class="secondary-btn" id="send-now">Send digest now</button>
+      <span id="send-result" class="muted small"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Leagues</h2>
+    <table class="kv leagues-status">
+      <thead>
+        <tr><th>League</th><th>Last refresh</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for lg in leagues %}
+          {% set s = status.get(lg.id) %}
+          <tr>
+            <td>
+              <span class="league-swatch" style="background: {{ lg.color }};"></span>
+              {{ lg.name }} <span class="muted small">{{ lg.full_name }}</span>
+            </td>
+            <td>{{ s.last_run if s else "—" }}</td>
+            <td>
+              {% if s and s.ok %}
+                <span class="ok">OK</span> — {{ s.message }}
+              {% elif s %}
+                <span class="err">ERR</span> — {{ s.message }}
+              {% else %}
+                <span class="muted">never</span>
+              {% endif %}
+            </td>
+            <td><button class="secondary-btn refresh-one" data-league="{{ lg.id }}">Refresh</button></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+document.getElementById('send-now').addEventListener('click', async () => {
+  const r = document.getElementById('send-result');
+  r.textContent = 'sending...';
+  const res = await fetch('/api/digest/send', { method: 'POST' });
+  const j = await res.json();
+  r.textContent = JSON.stringify(j);
+});
+document.querySelectorAll('.refresh-one').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const lg = btn.dataset.league;
+    btn.textContent = 'refreshing...';
+    const res = await fetch(`/api/refresh/sync?league=${lg}`, { method: 'POST' });
+    const j = await res.json();
+    btn.textContent = 'Refresh';
+    alert(`${lg}: ${j.message} (${j.count})`);
+    location.reload();
+  });
+});
+</script>
+{% endblock %}

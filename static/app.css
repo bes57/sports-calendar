@@ -1,0 +1,547 @@
+/* --- Design tokens --- */
+:root {
+  --bg: #F6F7F9;
+  --panel: #FFFFFF;
+  --text: #0F172A;
+  --text-soft: #334155;
+  --muted: #64748B;
+  --muted-2: #94A3B8;
+  --border: #E5E7EB;
+  --border-strong: #CBD5E1;
+  --hover: #F1F5F9;
+  --primary: #0F172A;
+  --accent: #2563EB;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.22);
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- Header --- */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 22px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.brand a { color: var(--text); }
+.brand-dot {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: conic-gradient(from 90deg, #DC2626, #F97316, #16A34A, #0EA5E9, #7C3AED, #DC2626);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.2);
+}
+nav a {
+  margin-left: 20px;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 13px;
+}
+nav a:hover { color: var(--text); text-decoration: none; }
+
+main { height: calc(100vh - 57px); }
+
+/* --- Layout --- */
+.layout {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  height: 100%;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.sidebar-section { display: flex; flex-direction: column; gap: 10px; }
+.sidebar-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.sidebar-actions { display: flex; gap: 12px; font-size: 12px; }
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.link-btn:hover { text-decoration: underline; }
+
+.league-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.league-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.league-row:hover { background: var(--hover); }
+.league-check {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.league-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+.league-name { font-weight: 500; font-size: 13px; }
+
+.primary-btn, .secondary-btn {
+  border: none;
+  cursor: pointer;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.1s;
+}
+.primary-btn {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+.primary-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.primary-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.secondary-btn {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+.secondary-btn:hover { background: var(--hover); }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.ok { color: #16A34A; font-weight: 600; }
+.err { color: #DC2626; font-weight: 600; }
+.sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* Compact-grid mode uses FC's `slotDuration` (set in JS) to control row
+   count — no CSS slot-height overrides needed. We only tweak label font
+   to keep the wider intervals readable. */
+body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !important; }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+.toggle-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0;
+}
+.toggle-row:hover { color: var(--text); }
+
+.tz-select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+.tz-select:hover { border-color: var(--muted); }
+.tz-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+
+/* --- Calendar wrap --- */
+.calendar-wrap {
+  padding: 18px 20px;
+  overflow: hidden;
+  display: flex;
+}
+#calendar {
+  background: var(--panel);
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  height: 100%;
+}
+
+/* --- FullCalendar shared --- */
+.fc { font-size: 13px; }
+.fc .fc-toolbar { margin-bottom: 14px !important; gap: 8px; }
+.fc .fc-toolbar-title { font-size: 18px; font-weight: 700; letter-spacing: -0.015em; }
+
+.fc .fc-button {
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: none;
+  padding: 7px 13px;
+  border-radius: 7px;
+  box-shadow: none;
+  transition: all 0.12s;
+}
+.fc .fc-button:hover { background: var(--hover); color: var(--text); }
+.fc .fc-button:focus { box-shadow: 0 0 0 3px rgba(37,99,235,0.18) !important; }
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+.fc .fc-button-group .fc-button { border-radius: 0; }
+.fc .fc-button-group .fc-button:first-child { border-top-left-radius: 7px; border-bottom-left-radius: 7px; }
+.fc .fc-button-group .fc-button:last-child  { border-top-right-radius: 7px; border-bottom-right-radius: 7px; }
+
+.fc .fc-scrollgrid, .fc td, .fc th { border-color: var(--border); }
+.fc .fc-scrollgrid { border-radius: 8px; overflow: hidden; }
+
+/* --- Day headers --- */
+.fc .fc-col-header-cell { background: transparent; border-color: var(--border); padding: 10px 0; }
+.fc .fc-col-header-cell-cushion {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 4px;
+}
+.fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent); }
+.fc .fc-day-today { background: rgba(37,99,235,0.04) !important; }
+
+/* --- Time grid --- */
+.fc .fc-timegrid-slot { height: 42px; border-color: var(--border); }
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding-right: 10px;
+}
+/* Anchor each time label to the gridline it represents — the top border
+   of its slot row. translateY(-50%) shifts the label up by half its own
+   height so the gridline runs through the label's vertical center.
+   First label (12am / top of grid) is NOT translated, otherwise half of it
+   would render above the grid's clipping boundary and be cut off. */
+.fc .fc-timegrid-slot-label { vertical-align: top !important; }
+.fc .fc-timegrid-slot-label-frame {
+  display: inline-block;
+  transform: translateY(-50%);
+  background: var(--panel);
+  padding: 0 6px 0 2px;
+}
+.fc .fc-timegrid-slots tr:first-child .fc-timegrid-slot-label-frame {
+  transform: none;
+}
+.fc .fc-timegrid-axis-cushion {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
+.fc .fc-timegrid-now-indicator-arrow { border-top-color: #DC2626; border-bottom-color: #DC2626; }
+
+/* --- Time-grid events: solid colored blocks --- */
+/* Cap tile width so a solo event doesn't balloon to the full column.
+   When events overlap, FullCalendar shrinks the harness below this cap
+   automatically — so dense days still tile, sparse days stay tidy. */
+/* Pill mode: tiles render as colored bars with no text. Body[data-pill="on"]
+   is set by JS (uniformizeWeekTiles) when in the Week view. Off elsewhere. */
+body[data-pill="on"] .fc-timegrid-event .fc-event-title,
+body[data-pill="on"] .fc-timegrid-event .fc-event-time {
+  display: none !important;
+}
+
+/* Month view: hide titles on dot events so they render as colored dots.
+   (Week-view text-hiding is now handled in JS eventDidMount per-event,
+   which is bulletproof against view-class mismatches.) */
+body[data-view="dayGridMonth"] .fc-daygrid-dot-event .fc-event-title,
+body[data-view="dayGridMonth"] .fc-daygrid-dot-event .fc-event-time {
+  display: none !important;
+}
+.fc-timegrid-event, .fc-timegrid-event .fc-event-main {
+  border-radius: 6px;
+  border: none;
+  color: white;
+}
+.fc-timegrid-event {
+  box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 1px rgba(255,255,255,0.08);
+  padding: 2px 6px;
+  cursor: pointer;
+  overflow: hidden;
+  font-weight: 700;
+  min-height: 0;   /* let tile heights be truly proportional to duration */
+  margin: 0 1px;
+}
+.fc-timegrid-event:hover {
+  box-shadow: 0 8px 24px rgba(15,23,42,0.28);
+  z-index: 5;
+  transform: translateY(-1px);
+}
+.fc-timegrid-event .fc-event-time { display: none; }  /* time implied by row position */
+.fc-timegrid-event .fc-event-title {
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.15);
+}
+.fc-timegrid-event .fc-event-main { padding: 0; }
+.fc-timegrid-event .fc-event-main-frame { display: flex; flex-direction: column; }
+.fc-timegrid-slot-minor { border-top-style: dotted !important; opacity: 0.5; }
+
+/* --- All-day band (golf tournaments etc) --- */
+.fc-daygrid-event, .fc-daygrid-event .fc-event-main {
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-weight: 600;
+}
+.fc-daygrid-event { border: none !important; color: white !important; }
+
+/* --- Month view events --- */
+.fc-dayGridMonth-view .fc-event { font-size: 11px; padding: 2px 6px; }
+
+/* --- LIST / AGENDA view --- */
+.fc .fc-list { border: none; }
+.fc .fc-list-table { border-collapse: separate; border-spacing: 0; }
+/* Day headers are sticky in FullCalendar's list view (they pin to the top
+   while you scroll). They need an OPAQUE background — otherwise the events
+   scrolling underneath bleed through and the headers stack/overlap visually. */
+.fc .fc-list-day > th {
+  background: var(--panel) !important;
+  border: none !important;
+  border-top: 1px solid var(--border) !important;
+  padding: 0 !important;
+}
+.fc .fc-list-day-cushion {
+  background: var(--panel) !important;
+  padding: 20px 12px 10px !important;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 0 var(--border);  /* hairline separator under the sticky header */
+}
+.fc .fc-list-day-text {
+  color: var(--text);
+  text-decoration: none !important;
+}
+.fc .fc-list-day-side-text {
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none !important;
+}
+.fc .fc-day-today .fc-list-day-cushion { color: var(--accent); }
+.fc .fc-day-today .fc-list-day-text { color: var(--accent); }
+
+.fc .fc-list-event {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.fc .fc-list-event:hover td { background: var(--hover); }
+.fc .fc-list-event > td {
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 12px 8px !important;
+  vertical-align: middle;
+}
+.fc .fc-list-event > td:first-child { padding-left: 12px !important; }
+.fc .fc-list-event-time {
+  width: 110px;
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.fc .fc-list-event-graphic { width: 18px; }
+.fc .fc-list-event-dot {
+  border: 5px solid currentColor;
+  border-radius: 99px;
+}
+.fc .fc-list-event-title { color: var(--text); font-size: 14px; }
+.fc .fc-list-event-title a { color: var(--text); }
+
+/* Custom enrichments injected by app.js into list rows */
+.lst-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 10px;
+  vertical-align: 2px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+.lst-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.lst-sub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.fc .fc-list-empty {
+  background: transparent;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* --- Popover --- */
+.popover {
+  position: fixed;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  padding: 18px 20px;
+  min-width: 300px;
+  max-width: 380px;
+  z-index: 9999;
+}
+.popover.hidden { display: none; }
+.popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.popover-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 99px;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.popover-title { font-size: 17px; font-weight: 700; margin-bottom: 2px; letter-spacing: -0.015em; }
+.popover-subtitle { color: var(--muted); margin-bottom: 14px; font-size: 13px; }
+.popover-row { display: flex; padding: 5px 0; font-size: 13px; align-items: flex-start; }
+.popover-row-block { flex-direction: column; gap: 4px; }
+.popover-row-block .popover-label { width: auto; padding-top: 0; margin-bottom: 2px; }
+#popover-note { line-height: 1.45; color: var(--text-soft); }
+.popover-label {
+  flex-shrink: 0;
+  width: 64px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 700;
+  padding-top: 2px;
+}
+.popover-link {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+}
+.popover-link:hover { text-decoration: underline; }
+
+/* --- Settings page --- */
+.settings-wrap { padding: 28px; max-width: 920px; margin: 0 auto; }
+.settings-wrap h1 { margin: 0 0 22px; letter-spacing: -0.02em; }
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.card h2 { margin: 0 0 10px; font-size: 15px; }
+table.kv { border-collapse: collapse; width: 100%; margin-top: 8px; }
+table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.leagues-status th { font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 700; letter-spacing: 0.05em; }
+
+/* --- Day cells (month view) --- */
+.fc-daygrid-day.fc-day-today { background: rgba(37,99,235,0.04) !important; }
+.fc .fc-daygrid-day-number { color: var(--text); font-weight: 600; padding: 6px 8px; }
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: var(--accent); }

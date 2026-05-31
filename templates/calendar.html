@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Calendar — Sports Calendar{% endblock %}
+{% block head %}
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css' rel='stylesheet' />
+  <script src='https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/luxon3@6.1.15/index.global.min.js'></script>
+{% endblock %}
+{% block content %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Leagues</div>
+      <div class="sidebar-actions">
+        <button id="all-leagues" class="link-btn">All</button>
+        <button id="no-leagues" class="link-btn">None</button>
+      </div>
+      <ul class="league-list">
+        {% for lg in leagues %}
+        <li>
+          <label class="league-row">
+            <input type="checkbox" class="league-check" data-league="{{ lg.id }}" checked />
+            <span class="league-swatch" style="background: {{ lg.color }};"></span>
+            <span class="league-name">{{ lg.name }}</span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="sidebar-section">
+      <button id="refresh-btn" class="primary-btn">Refresh data</button>
+      <div id="refresh-status" class="muted small"></div>
+    </div>
+    <div class="sidebar-section">
+      <label class="toggle-row">
+        <input type="checkbox" id="compact-toggle" />
+        <span>Fit 24h on screen</span>
+      </label>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Timezone</div>
+      <select id="tz-select" class="tz-select">
+        <option value="local">Browser default</option>
+        <option value="America/New_York">Eastern — New York</option>
+        <option value="America/Chicago">Central — Chicago</option>
+        <option value="America/Denver">Mountain — Denver</option>
+        <option value="America/Los_Angeles">Pacific — Los Angeles</option>
+        <option value="America/Anchorage">Alaska — Anchorage</option>
+        <option value="Pacific/Honolulu">Hawaii — Honolulu</option>
+        <option value="UTC">UTC</option>
+        <option value="Europe/London">London</option>
+        <option value="Europe/Paris">Paris / Berlin</option>
+        <option value="Asia/Kolkata">India — Kolkata</option>
+        <option value="Asia/Singapore">Singapore</option>
+        <option value="Asia/Tokyo">Tokyo / Seoul</option>
+        <option value="Australia/Sydney">Sydney</option>
+      </select>
+    </div>
+  </aside>
+  <section class="calendar-wrap">
+    <div id="calendar"></div>
+  </section>
+</div>
+
+<div id="event-popover" class="popover hidden">
+  <div class="popover-header">
+    <span id="popover-league" class="popover-pill"></span>
+    <button id="popover-close" class="icon-btn" aria-label="Close">&times;</button>
+  </div>
+  <div id="popover-title" class="popover-title"></div>
+  <div id="popover-subtitle" class="popover-subtitle"></div>
+  <div class="popover-row"><span class="popover-label">When</span><span id="popover-when"></span></div>
+  <div class="popover-row" id="popover-venue-row"><span class="popover-label">Where</span><span id="popover-venue"></span></div>
+  <div class="popover-row popover-row-block" id="popover-note-row"><span class="popover-label">Note</span><span id="popover-note"></span></div>
+  <a id="popover-link" class="popover-link" href="#" target="_blank" rel="noopener">Open on source &rarr;</a>
+</div>
+
+<script>
+  window.SPORTS_CAL = {
+    leagues: {{ leagues_json | tojson }}
+  };
+</script>
+<script src="/static/app.js?v={{ asset_version }}"></script>
+{% endblock %}
