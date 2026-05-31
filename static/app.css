@@ -328,17 +328,26 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
 .fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent); }
 .fc .fc-day-today { background: rgba(37,99,235,0.04) !important; }
 
-/* Subtle, quick ease-in for newly-mounted event tiles. Starts at 70%
-   opacity (visible from frame 1, no blank moment) and ramps to 100% over
-   140ms — fast enough to feel immediate, smooth enough to avoid a hard
-   pop. Transform stays unset so it doesn't fight the existing :hover
-   translateY. */
+/* Event-tile mount: longer ease-out that scales up from 92% with a partial
+   opacity start. Visible from frame 1, but with a clear "growing in" feel. */
 @keyframes kcal-event-in {
-  from { opacity: 0.7; }
-  to   { opacity: 1; }
+  from { opacity: 0.55; transform: scale(0.92); }
+  to   { opacity: 1;    transform: scale(1); }
 }
 .fc-event {
-  animation: kcal-event-in 140ms ease-out both;
+  animation: kcal-event-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center center;
+}
+
+/* Month-view day cells grow alongside the events so the row breathes in
+   as content lands instead of looking static while tiles inflate inside. */
+@keyframes kcal-cell-in {
+  from { transform: scale(0.97); }
+  to   { transform: scale(1); }
+}
+body[data-view="dayGridMonth"] .fc-daygrid-day-frame {
+  animation: kcal-cell-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center top;
 }
 
 /* --- Time grid --- */
