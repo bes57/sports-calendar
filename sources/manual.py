@@ -16,6 +16,31 @@ from timeutil import to_utc_iso
 
 
 EVENTS: dict[str, list[dict]] = {
+    "mlb_allstar_2026": [
+        # 2026 All-Star Week at Citizens Bank Park, Philadelphia (host: Phillies).
+        # All-Star Game itself (Tue Jul 14) already comes from ESPN as "AL VS NL".
+        # Listed here: the satellite events MLB.com publishes around it.
+        {
+            "source_id": "mlb_futures_2026",
+            "title": "MLB Futures Game",
+            "subtitle": "2026 All-Star Week — top prospects showcase",
+            "start": "2026-07-11T19:00:00-04:00",   # ~7 PM ET, Saturday before
+            "end":   "2026-07-11T22:00:00-04:00",
+            "venue": "Citizens Bank Park, Philadelphia, PA",
+            "broadcast": "MLB Network, MLB.TV",
+            "url": "https://www.mlb.com/all-star",
+        },
+        {
+            "source_id": "mlb_hr_derby_2026",
+            "title": "Home Run Derby",
+            "subtitle": "2026 MLB All-Star Week",
+            "start": "2026-07-13T20:00:00-04:00",   # 8 PM ET, Monday before the game
+            "end":   "2026-07-13T23:00:00-04:00",
+            "venue": "Citizens Bank Park, Philadelphia, PA",
+            "broadcast": "ESPN",
+            "url": "https://www.mlb.com/all-star",
+        },
+    ],
     "nba_draft": [
         {
             "source_id": "nba_draft_2026_r1",

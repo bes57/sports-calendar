@@ -37,6 +37,13 @@ LEAGUES: list[League] = [
         group="Baseball",
     ),
     League(
+        id="mlb_allstar", name="MLB All-Star", full_name="MLB All-Star Week",
+        color="#FBBF24",  # gold/yellow — All-Star colors, distinct from MLB navy
+        source="manual", source_args={"event_key": "mlb_allstar_2026"},
+        duration_hours=3.0,
+        group="Baseball",
+    ),
+    League(
         id="cws", name="CWS", full_name="NCAA Men's College World Series",
         color="#92400E",  # amber-800, distinct from MLB deep blue
         source="espn", source_args={
