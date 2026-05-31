@@ -523,10 +523,8 @@
       document.body.dataset.view = info.view.type;
       updateTodayButtonText(info.view.type);
       scheduleUniformizeWeek();
-      // Hide every existing event tile immediately so cross-range carryovers
-      // (overnight games that span the navigation boundary) don't sit visibly
-      // present while everything else is empty waiting on the fetch. They'll
-      // be revealed together with newly-mounted tiles in eventsSet.
+      // Hide every existing event tile (backup for direct calendar.changeView
+      // calls that don't go through a button click).
       document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
         el.style.opacity = '0';
       });
@@ -621,6 +619,19 @@
     localStorage.setItem(COMPACT_KEY, on ? '1' : '0');
     mountCalendar(on, /*preserveDate=*/true);
   }
+
+  // Capture-phase click listener — fires BEFORE FullCalendar's own button
+  // handler. The moment a nav button (prev / next / today / view-switch) is
+  // clicked, hide every currently-mounted event tile so cross-range carry-
+  // overs (overnight games that span the navigation boundary) don't sit
+  // visibly present while the new range is fetching. eventsSet reveals them
+  // and replays the mount animation once FC has settled the new range.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.fc-button')) return;
+    document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
+      el.style.opacity = '0';
+    });
+  }, /*capture=*/true);
 
   // Anchor FC's "+N more" popover so its BOTTOM edge sits at the bottom of
   // the day cell that triggered it (popover grows upward instead of bleeding
