@@ -328,6 +328,53 @@ body[data-view="timeGridWeek"] .fc-timegrid-event .fc-event-time {
   display: none !important;
 }
 
+/* Day & 3-Day tiles: title centered horizontally + vertically inside the
+   bubble. The title sits a few layers deep (.fc-event-main > .fc-event-main-
+   frame > .fc-event-title-container > .fc-event-title) so every layer needs
+   to be a centered flex container with full width+height for vertical
+   centering to take. */
+body[data-view="threeDay"] .fc-timegrid-event,
+body[data-view="timeGridDay"] .fc-timegrid-event {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+body[data-view="threeDay"] .fc-timegrid-event .fc-event-main,
+body[data-view="threeDay"] .fc-timegrid-event .fc-event-main-frame,
+body[data-view="threeDay"] .fc-timegrid-event .fc-event-title-container,
+body[data-view="timeGridDay"] .fc-timegrid-event .fc-event-main,
+body[data-view="timeGridDay"] .fc-timegrid-event .fc-event-main-frame,
+body[data-view="timeGridDay"] .fc-timegrid-event .fc-event-title-container {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+body[data-view="timeGridDay"] .fc-timegrid-event .fc-event-title {
+  text-align: center;
+  width: 100%;
+}
+body[data-view="threeDay"] .fc-timegrid-event .fc-event-title {
+  font-size: 7px;
+  /* Bigger line-height evens out the visual gap above and below the @
+     glyph when the title wraps team / @ / team. */
+  line-height: 1.8;
+  text-align: center;
+  width: 100%;
+}
+
+/* Agenda (list) view: smaller text in each item row. */
+body[data-view="listWeek"] .lst-title,
+body[data-view="listDay"]  .lst-title { font-size: 12px; }
+body[data-view="listWeek"] .lst-sub,
+body[data-view="listDay"]  .lst-sub   { font-size: 10px; }
+body[data-view="listWeek"] .lst-pill,
+body[data-view="listDay"]  .lst-pill  { font-size: 9px; padding: 1px 7px; }
+body[data-view="listWeek"] .fc .fc-list-event-time,
+body[data-view="listDay"]  .fc .fc-list-event-time { font-size: 11px; }
+
 .fc-timegrid-event, .fc-timegrid-event .fc-event-main {
   border-radius: 6px;
   border: none;
@@ -404,10 +451,8 @@ body[data-view="timeGridWeek"] .fc-timegrid-event .fc-event-time {
 .fc .fc-day-today .fc-list-day-text { color: var(--accent); }
 
 .fc .fc-list-event {
-  cursor: pointer;
-  transition: background 0.1s;
+  cursor: default;
 }
-.fc .fc-list-event:hover td { background: var(--hover); }
 .fc .fc-list-event > td {
   border: none !important;
   border-bottom: 1px solid var(--border) !important;
@@ -546,6 +591,35 @@ table.kv { border-collapse: collapse; width: 100%; margin-top: 8px; }
 table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 .actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .leagues-status th { font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 700; letter-spacing: 0.05em; }
+
+/* --- Month-view "+N more" popover --- */
+/* FC's default popover has no opaque background, so when it opens in a
+   bottom-corner cell with limited space the day numbers and grid behind it
+   bleed through. Match it to the rest of the app's panel style and give it
+   a z-index above the grid so it cleanly covers whatever's underneath. */
+.fc .fc-popover {
+  background: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 50;
+}
+.fc .fc-popover-header {
+  background: var(--panel) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 10px 12px !important;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text);
+}
+.fc .fc-popover-title { letter-spacing: -0.01em; }
+.fc .fc-popover-body {
+  background: var(--panel) !important;
+  padding: 6px 8px !important;
+  max-height: 340px;
+  overflow-y: auto;
+}
 
 /* --- Day cells (month view) --- */
 .fc-daygrid-day.fc-day-today { background: rgba(37,99,235,0.04) !important; }

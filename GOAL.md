@@ -1,4 +1,4 @@
-# Sports Calendar — Project Goal
+# K-Cal — Project Goal
 
 ## One-line pitch
 A personal sports planning tool: a Google Calendar–style web view of upcoming events across the leagues I follow, plus a daily morning digest (email and/or SMS) so I always know what's on.

@@ -28,7 +28,7 @@ _normalize_iso = _to_utc_iso
 load_dotenv()
 BASE_DIR = Path(__file__).parent
 
-app = FastAPI(title="Sports Calendar")
+app = FastAPI(title="K-Cal")
 
 
 class _NoCacheStaticFiles(StaticFiles):

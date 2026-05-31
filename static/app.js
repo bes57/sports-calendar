@@ -70,9 +70,9 @@
   // "Today" label gets re-scoped to the active view (Day/Week/Month/etc.).
   const TODAY_LABELS = {
     listDay:      'Today',
+    listWeek:     'Today',
     threeDay:     'Today',
     timeGridDay:  'Today',
-    listWeek:     'This Week',
     timeGridWeek: 'This Week',
     dayGridMonth: 'This Month',
   };
@@ -86,23 +86,55 @@
   // spans the full column minus a left offset scaled to the deepest overlap
   // in its column, so even the back-most tile keeps ~MIN_VISIBLE pixels free
   // on the left for its title.
-  // Week view: pack each day-column with skinny fixed-width tiles, lined up
-  // from the left. They stay entirely inside their day's column — never
-  // spill into the next day. If the day has more overlapping events than fit
-  // naturally, tiles overlap *within* the day rather than expanding outward.
-  function packWeekTiles() {
-    const TILE_WIDTH = 14;
-    const TILE_GAP = 1;
+  // Live-DOM text width measurement. Canvas measureText() doesn't apply
+  // letter-spacing and uses fallback font metrics when the web font (Inter)
+  // hasn't fully loaded yet — both cause under-estimation, which then makes
+  // the last letter of a tile's text overflow into the rounded right edge.
+  // A hidden inline-block span uses the real browser layout pipeline so the
+  // measurement matches what gets rendered.
+  function _measureTextPx(text, titleEl) {
+    let span = _measureTextPx._span;
+    if (!span) {
+      span = document.createElement('span');
+      span.style.position = 'absolute';
+      span.style.visibility = 'hidden';
+      span.style.whiteSpace = 'nowrap';
+      span.style.top = '-9999px';
+      span.style.left = '-9999px';
+      document.body.appendChild(span);
+      _measureTextPx._span = span;
+    }
+    const cs = getComputedStyle(titleEl);
+    span.style.fontSize = cs.fontSize;
+    span.style.fontWeight = cs.fontWeight;
+    span.style.fontFamily = cs.fontFamily;
+    span.style.fontStyle = cs.fontStyle;
+    span.style.letterSpacing = cs.letterSpacing;
+    span.textContent = text;
+    return span.getBoundingClientRect().width;
+  }
+
+  // Pack each day-column. Tiles are grouped into **overlap clusters** (sets
+  // of tiles connected by time-overlap). Inside a cluster:
+  //   - sizeToTitle=true: each tile sizes to its own title width + padding
+  //     (with a floor of maxTilePx). Cluster pitch = max title width in
+  //     cluster + gap, so no horizontal overlap regardless of which tiles
+  //     happen to be active at the same moment.
+  //   - sizeToTitle=false: all tiles are fixed maxTilePx wide (Week mode).
+  // If the cluster's natural pack exceeds column width, every desired width
+  // is scaled down uniformly so the cluster fits.
+  function _packTilesInColumns(maxTilePx, gap, sizeToTitle) {
     document.querySelectorAll('.fc-timegrid-col-events').forEach(colEvents => {
       const harnesses = Array.from(colEvents.querySelectorAll('.fc-timegrid-event-harness'));
       if (!harnesses.length) return;
       const colWidth = colEvents.getBoundingClientRect().width;
       const items = harnesses.map(h => {
         const r = h.getBoundingClientRect();
-        return { h, top: r.top, bottom: r.bottom, level: 0 };
+        return { h, top: r.top, bottom: r.bottom, level: 0, cluster: -1 };
       });
       items.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
-      let maxLevel = 0;
+
+      // Level assignment (greedy lowest-unused level among prior overlaps).
       items.forEach((item, i) => {
         const taken = new Set();
         for (let j = 0; j < i; j++) {
@@ -113,72 +145,81 @@
         let level = 0;
         while (taken.has(level)) level++;
         item.level = level;
-        if (level > maxLevel) maxLevel = level;
       });
-      const naturalPitch = TILE_WIDTH + TILE_GAP;
-      const maxRightEdge = colWidth - TILE_WIDTH;
-      const pitch = maxLevel === 0
-        ? 0
-        : Math.min(naturalPitch, maxRightEdge / maxLevel);
-      items.forEach(item => {
-        const offset = item.level * pitch;
-        item.h.style.left = offset + 'px';
-        item.h.style.width = TILE_WIDTH + 'px';
-        item.h.style.right = 'auto';
-        item.h.style.insetInlineStart = offset + 'px';
-        item.h.style.insetInlineEnd = 'auto';
-        item.h.style.zIndex = String(item.level + 1);
+
+      // Flood-fill clusters of time-overlapping tiles, keeping their members.
+      const adj = items.map(() => []);
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          if (items[i].bottom > items[j].top && items[i].top < items[j].bottom) {
+            adj[i].push(j); adj[j].push(i);
+          }
+        }
+      }
+      const clusters = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].cluster !== -1) continue;
+        const cid = clusters.length;
+        const members = [];
+        const stack = [i];
+        while (stack.length) {
+          const k = stack.pop();
+          if (items[k].cluster !== -1) continue;
+          items[k].cluster = cid;
+          members.push(items[k]);
+          adj[k].forEach(n => { if (items[n].cluster === -1) stack.push(n); });
+        }
+        clusters.push(members);
+      }
+
+      // Outer-tile padding (≈8 px both sides) + slack for sub-pixel font
+      // metrics and the rounded right edge of the tile.
+      const TITLE_PADDING = 18;
+      function desiredWidth(item) {
+        if (!sizeToTitle) return maxTilePx;
+        const titleEl = item.h.querySelector('.fc-event-title');
+        const text = titleEl && titleEl.textContent || '';
+        if (!titleEl || !text) return maxTilePx;
+        const textW = _measureTextPx(text, titleEl);
+        return Math.max(maxTilePx, textW + TITLE_PADDING);
+      }
+
+      clusters.forEach(members => {
+        const count = Math.max.apply(null, members.map(it => it.level)) + 1;
+        const desired = members.map(desiredWidth);
+        const maxDesired = Math.max.apply(null, desired);
+        const naturalPitch = maxDesired + gap;
+        const totalAtNatural = count * naturalPitch - gap;
+        let pitch, scale;
+        if (totalAtNatural <= colWidth) {
+          pitch = naturalPitch;
+          scale = 1;
+        } else {
+          // Cluster doesn't fit at natural widths. Shrink everything uniformly
+          // so the rightmost level still ends at the column edge.
+          pitch = Math.max(1, (colWidth + gap) / count);
+          scale = pitch / naturalPitch;
+        }
+        members.forEach((item, idx) => {
+          const w = Math.max(1, desired[idx] * scale);
+          const offset = item.level * pitch;
+          item.h.style.left = offset + 'px';
+          item.h.style.width = w + 'px';
+          item.h.style.right = 'auto';
+          item.h.style.insetInlineStart = offset + 'px';
+          item.h.style.insetInlineEnd = 'auto';
+          item.h.style.zIndex = String(item.level + 1);
+        });
       });
     });
   }
 
-  function shingleDay3DayTiles() {
-    // Each tile is ~TILE_RATIO of the column width (or MIN_TILE_PX, whichever
-    // is bigger). The leftover space is divided evenly across the overlap
-    // levels so tiles spread across the column instead of stacking over each
-    // other. Bigger TILE_RATIO = wider tiles; smaller = narrower.
-    const TILE_RATIO = 0.55;
-    const MIN_TILE_PX = 80;
-    document.querySelectorAll('.fc-timegrid-col-events').forEach(colEvents => {
-      const harnesses = Array.from(colEvents.querySelectorAll('.fc-timegrid-event-harness'));
-      if (!harnesses.length) return;
-      const colWidth = colEvents.getBoundingClientRect().width;
-      const items = harnesses.map(h => {
-        const r = h.getBoundingClientRect();
-        return { h, top: r.top, bottom: r.bottom, level: 0 };
-      });
-      items.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
-      let maxLevel = 0;
-      items.forEach((item, i) => {
-        const taken = new Set();
-        for (let j = 0; j < i; j++) {
-          if (items[j].bottom > item.top && items[j].top < item.bottom) {
-            taken.add(items[j].level);
-          }
-        }
-        let level = 0;
-        while (taken.has(level)) level++;
-        item.level = level;
-        if (level > maxLevel) maxLevel = level;
-      });
-      // Solo column → tile spans full width (no point shrinking it).
-      const tileWidth = maxLevel === 0
-        ? colWidth
-        : Math.max(MIN_TILE_PX, colWidth * TILE_RATIO);
-      const offsetPerLevel = maxLevel === 0
-        ? 0
-        : (colWidth - tileWidth) / maxLevel;
-      items.forEach(item => {
-        const offset = item.level * offsetPerLevel;
-        item.h.style.left = offset + 'px';
-        item.h.style.width = tileWidth + 'px';
-        item.h.style.right = 'auto';
-        item.h.style.insetInlineStart = offset + 'px';
-        item.h.style.insetInlineEnd = 'auto';
-        item.h.style.zIndex = String(item.level + 1);
-      });
-    });
-  }
+  // 14px skinny tiles — no titles fit, so Week CSS hides them and there's
+  // nothing to grow toward.
+  function packWeekTiles() { _packTilesInColumns(14, 1, false); }
+  // 50px tiles for Day/3-Day, packed tight (0px gap). Solo tiles grow to fit
+  // their title text, capped at column width.
+  function packDay3DayTiles() { _packTilesInColumns(50, 0, true); }
 
   // Events that cross midnight render as two harnesses — one per day column.
   // FC lays each day out independently, so a game appearing at the right side
@@ -237,7 +278,7 @@
     // Other views (Month) leave FC's positioning alone.
     if (view === 'threeDay' || view === 'timeGridDay') {
       _resetHarnessStyles();
-      shingleDay3DayTiles();
+      packDay3DayTiles();
       alignCrossDayEvents();
     } else if (view === 'timeGridWeek') {
       _resetHarnessStyles();
@@ -278,11 +319,21 @@
   }
 
   function updateTodayButtonText(viewType) {
-    // Always pass the FULL BUTTON_TEXT — FC's setOption('buttonText')
-    // replaces the entire object, so a partial would lose Day/Agenda/etc.
-    if (!window.__calendar) return;
     const todayLabel = TODAY_LABELS[viewType] || 'Today';
-    window.__calendar.setOption('buttonText', { ...BUTTON_TEXT, today: todayLabel });
+    if (window.__calendar) {
+      window.__calendar.setOption('buttonText', { ...BUTTON_TEXT, today: todayLabel });
+    }
+    // Defer to the next frame so FC has finished re-rendering the toolbar
+    // BEFORE we patch the DOM — otherwise FC's re-render runs after our patch
+    // and appends its label next to ours, producing e.g. "This WeekThis Month".
+    // Then explicitly wipe child nodes before writing the new text so any
+    // stray text nodes left by FC are gone.
+    requestAnimationFrame(() => {
+      const todayBtn = document.querySelector('.fc-today-button');
+      if (!todayBtn) return;
+      while (todayBtn.firstChild) todayBtn.removeChild(todayBtn.firstChild);
+      todayBtn.textContent = todayLabel;
+    });
   }
 
   // Calendar — guard the saved view against renames so an obsolete value
@@ -310,7 +361,7 @@
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'timeGridDay,listWeek,threeDay,timeGridWeek,dayGridMonth'
+      right: 'listWeek,timeGridDay,threeDay,timeGridWeek,dayGridMonth'
     },
     buttonText: { ...BUTTON_TEXT, today: TODAY_LABELS[initialView] || 'Today' },
     height: '100%',
@@ -331,6 +382,9 @@
     displayEventEnd: false,
     eventDisplay: 'block',
     slotEventOverlap: false,
+    // Sort strictly by start time (then title as a stable tiebreaker), so the
+    // agenda and time-grid both lay events out chronologically.
+    eventOrder: 'start,title',
     eventMinHeight: 6,   // let very short events (wrap tails, 10-min slivers)
                          // render at their true proportional height instead
                          // of being padded out to look like longer ones
@@ -355,12 +409,16 @@
       listWeek: {
         listDayFormat: { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' },
         listDaySideFormat: false,
-        noEventsContent: 'No events in this week.'
+        noEventsContent: 'No events in this week.',
+        // Override the global displayEventTime: false so the agenda shows
+        // start times next to each matchup.
+        displayEventTime: true,
       },
       listDay: {
         listDayFormat: { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' },
         listDaySideFormat: false,
-        noEventsContent: 'No events today.'
+        noEventsContent: 'No events today.',
+        displayEventTime: true,
       },
     },
     events: async (info, success, failure) => {
@@ -378,16 +436,13 @@
     },
     eventClick: (info) => {
       info.jsEvent.preventDefault();
+      // Agenda items are read-only — no popover, no navigation.
+      if (info.view.type === 'listWeek' || info.view.type === 'listDay') return;
       info.jsEvent.stopPropagation();
       showPopover(info.event, info.el);
     },
-    // In month view, clicking an empty area of a day cell zooms into that day.
-    // The day-number nav-link (navLinks: true) provides the same shortcut.
-    dateClick: (info) => {
-      if (info.view.type === 'dayGridMonth') {
-        calendar.changeView('timeGridDay', info.date);
-      }
-    },
+    // Day-number is the only zoom-into-day handle (navLinks below) — clicking
+    // empty cell space should NOT navigate, to avoid accidental zooms.
     navLinks: true,
     navLinkDayClick: 'timeGridDay',
     eventDidMount: (info) => {
@@ -418,6 +473,15 @@
 
       // List view: enrich with league pill + subtitle
       if (view === 'listWeek' || view === 'listDay') {
+        // Overnight events get rendered on both days they touch (the start
+        // day at e.g. 9pm and the next day at "12am — 12:30am"). Hide the
+        // continuation segment so the event appears only once, on its start
+        // day. `isStart` is true only for the segment that contains the
+        // actual event start.
+        if (info.isStart === false) {
+          info.el.style.display = 'none';
+          return;
+        }
         const titleCell = info.el.querySelector('.fc-list-event-title');
         if (titleCell && !titleCell.dataset.enriched) {
           titleCell.dataset.enriched = '1';
@@ -445,6 +509,7 @@
       // Canonical hook for view-class management — fires every time a view
       // is mounted, including initial render and explicit changeView calls.
       document.body.dataset.view = info.view.type;
+      updateTodayButtonText(info.view.type);
       scheduleUniformizeWeek();
     },
     eventsSet: () => {
@@ -520,6 +585,68 @@
     localStorage.setItem(COMPACT_KEY, on ? '1' : '0');
     mountCalendar(on, /*preserveDate=*/true);
   }
+
+  // Anchor FC's "+N more" popover so its BOTTOM edge sits at the bottom of
+  // the day cell that triggered it (popover grows upward instead of bleeding
+  // off the bottom of the calendar).
+  //
+  // Implementation: record the source cell on click, then use a MutationObserver
+  // to catch the popover the instant it's added to the DOM. Style overrides
+  // use setProperty(..., 'important') because FC applies its own inline
+  // top/left and would otherwise win.
+  let _pendingMoreLinkCell = null;
+  document.addEventListener('click', (e) => {
+    const moreLink = e.target.closest('.fc-more-link');
+    if (!moreLink) return;
+    _pendingMoreLinkCell = moreLink.closest('.fc-daygrid-day');
+  });
+
+  function _anchorPopoverToCellBottom(popover, dayCell) {
+    // Defer one frame so the popover has its real (post-content) height.
+    requestAnimationFrame(() => {
+      const cellRect = dayCell.getBoundingClientRect();
+      const popRect = popover.getBoundingClientRect();
+      let top = Math.max(8, cellRect.bottom - popRect.height);
+      let left = Math.min(cellRect.left, window.innerWidth - popRect.width - 8);
+      left = Math.max(8, left);
+      popover.style.setProperty('position', 'fixed', 'important');
+      popover.style.setProperty('top', top + 'px', 'important');
+      popover.style.setProperty('left', left + 'px', 'important');
+      popover.style.setProperty('right', 'auto', 'important');
+      popover.style.setProperty('bottom', 'auto', 'important');
+    });
+  }
+
+  new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        const popover = node.classList && node.classList.contains('fc-popover')
+          ? node
+          : node.querySelector && node.querySelector('.fc-popover');
+        if (popover && _pendingMoreLinkCell) {
+          _anchorPopoverToCellBottom(popover, _pendingMoreLinkCell);
+          _pendingMoreLinkCell = null;
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+
+  // In Agenda views the "Today" button navigates the date range but doesn't
+  // bring today's day-row into view if it isn't already. Hook the click and
+  // scroll today's `.fc-list-day` into view once FC has finished rendering.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.fc-today-button')) return;
+    if (!calendar) return;
+    const view = calendar.view.type;
+    if (view !== 'listWeek' && view !== 'listDay') return;
+    setTimeout(() => {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const dayRow = document.querySelector(`.fc-list-day[data-date="${dateStr}"]`);
+      if (dayRow) dayRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  });
 
   // Initial mount — uses compactSaved to pick the right slotDuration up-front
   mountCalendar(compactSaved, false);

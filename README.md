@@ -1,4 +1,4 @@
-# Sports Calendar
+# K-Cal
 
 A personal sports planning tool: Google Calendar–style view of upcoming events
 across the leagues I follow, plus a daily morning digest by email (and

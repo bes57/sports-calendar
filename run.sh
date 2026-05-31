@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the Sports Calendar locally.
+# Run K-Cal locally.
 # Usage: ./run.sh
 set -e
 cd "$(dirname "$0")"
