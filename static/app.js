@@ -523,6 +523,18 @@
       document.body.dataset.view = info.view.type;
       updateTodayButtonText(info.view.type);
       scheduleUniformizeWeek();
+      // Carryover events (e.g. overnight games from the previous week / 3-Day
+      // window that bleed into the new one) reuse the same DOM element across
+      // navigation, so their mount-in CSS animation never replays. Force-
+      // restart the animation on every tile so the whole grid eases in
+      // together — agenda rows are excluded via the :not selector.
+      requestAnimationFrame(() => {
+        document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
+          el.style.animation = 'none';
+          void el.offsetWidth;     // force reflow so the next assignment restarts the animation
+          el.style.animation = '';
+        });
+      });
     },
     viewDidMount: (info) => {
       // Canonical hook for view-class management — fires every time a view
