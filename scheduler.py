@@ -36,18 +36,24 @@ def start_scheduler() -> BackgroundScheduler:
         next_run_time=None,  # don't immediately re-fetch; the API/manual call handles startup
     )
 
-    # Daily digest at the configured local time
-    try:
-        hh, mm = digest_time.split(":")
-        from digest import send_digest
-        sched.add_job(
-            send_digest,
-            trigger=CronTrigger(hour=int(hh), minute=int(mm), timezone=tz),
-            id="daily_digest",
-            replace_existing=True,
-        )
-    except Exception as exc:
-        logger.warning("Could not schedule digest: %s", exc)
+    # Daily digest at the configured local time. Can be disabled with
+    # DAILY_DIGEST_ENABLED=false (e.g. on Railway when the daily push is
+    # already being fired by GitHub Actions, to avoid double-pushes).
+    digest_enabled = os.getenv("DAILY_DIGEST_ENABLED", "true").lower() not in ("false", "0", "no")
+    if digest_enabled:
+        try:
+            hh, mm = digest_time.split(":")
+            from digest import send_digest
+            sched.add_job(
+                send_digest,
+                trigger=CronTrigger(hour=int(hh), minute=int(mm), timezone=tz),
+                id="daily_digest",
+                replace_existing=True,
+            )
+        except Exception as exc:
+            logger.warning("Could not schedule digest: %s", exc)
+    else:
+        logger.info("DAILY_DIGEST_ENABLED=false — skipping in-app daily digest")
 
     sched.start()
     _scheduler = sched

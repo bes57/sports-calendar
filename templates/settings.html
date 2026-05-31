@@ -5,21 +5,6 @@
   <h1>Settings</h1>
 
   <section class="card">
-    <h2>Digest</h2>
-    <p class="muted">Edit <code>.env</code> and restart to change these.</p>
-    <table class="kv">
-      <tr><td>Timezone</td><td>{{ tz }}</td></tr>
-      <tr><td>Send time</td><td>{{ digest_time }}</td></tr>
-      <tr><td>Email to</td><td>{{ digest_email or "(not configured)" }}</td></tr>
-    </table>
-    <div class="actions">
-      <a class="primary-btn" href="/api/digest/preview?format=html" target="_blank">Preview today's digest</a>
-      <button class="secondary-btn" id="send-now">Send digest now</button>
-      <span id="send-result" class="muted small"></span>
-    </div>
-  </section>
-
-  <section class="card">
     <h2>Leagues</h2>
     <table class="kv leagues-status">
       <thead>
@@ -52,13 +37,6 @@
 </div>
 
 <script>
-document.getElementById('send-now').addEventListener('click', async () => {
-  const r = document.getElementById('send-result');
-  r.textContent = 'sending...';
-  const res = await fetch('/api/digest/send', { method: 'POST' });
-  const j = await res.json();
-  r.textContent = JSON.stringify(j);
-});
 document.querySelectorAll('.refresh-one').forEach(btn => {
   btn.addEventListener('click', async () => {
     const lg = btn.dataset.league;

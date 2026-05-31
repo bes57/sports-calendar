@@ -66,6 +66,24 @@ async def on_startup() -> None:
     init_db()
     # Kick scheduler — runs periodic refresh and the morning digest
     start_scheduler()
+    # On a fresh container (e.g. Railway redeploy) the SQLite DB is empty,
+    # which would leave the calendar blank until the next periodic refresh.
+    # Fire one refresh in the background so data shows up immediately.
+    # The DB only has 1 row → skip the cold refresh (likely a hot reload).
+    import asyncio
+    from refresh import refresh_all
+    try:
+        from db import connect
+        with connect() as conn:
+            row = conn.execute("SELECT COUNT(*) as n FROM events").fetchone()
+            existing = row["n"] if row else 0
+    except Exception:
+        existing = 0
+    if existing < 5:
+        # Run in a thread so we don't block startup (uvicorn waits for the
+        # startup handler before serving). 30+s ESPN fetches would otherwise
+        # delay first request well past Railway's healthcheck timeout.
+        asyncio.get_event_loop().run_in_executor(None, refresh_all)
 
 
 # --- Pages ---

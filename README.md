@@ -116,6 +116,33 @@ sports-calendar/
     └── events.db       SQLite (created on first run)
 ```
 
+## Deploying to Railway (or Fly / Render)
+
+K-Cal ships a `Procfile` (`web: uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}`)
+and a `.python-version` (`3.13`) so PaaS platforms can detect it automatically.
+
+### Railway
+
+1. **New Project → Deploy from GitHub repo** → pick `sports-calendar`.
+2. After the first deploy, set these env vars under **Variables**:
+   - `TZ` = `America/New_York`
+   - `DAILY_DIGEST_ENABLED` = `false` — leave the daily ntfy push to the
+     GitHub Actions cron so you don't get double-pushed. Set to `true` (or
+     omit) if you'd rather have Railway send the push instead.
+   - `NTFY_TOPIC` = your topic (only needed if you set `DAILY_DIGEST_ENABLED=true`)
+3. Railway's filesystem is ephemeral. The first request after a deploy
+   triggers a background ESPN refresh (see `on_startup` in `app.py`) so the
+   calendar populates within ~30s. If you want persistence across deploys,
+   add a Railway volume mounted at `/app/data`.
+
+### Generic
+
+Any container platform that runs `uvicorn` works:
+
+```
+uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
 ## Deploying
 
 The app is a standard ASGI server — run it anywhere that runs Python:
