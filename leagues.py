@@ -160,6 +160,10 @@ LEAGUES: list[League] = [
         source="espn", source_args={"sport": "soccer", "league": "usa.1"},
         duration_hours=2.0,
         group="Soccer",
+        # 2026 has a long mid-season break for the FIFA World Cup
+        # (~May 25 → July 16). 90-day lookahead so July games still surface
+        # during the off-window.
+        fetch_days_ahead=90,
     ),
     League(
         id="wc", name="World Cup", full_name="FIFA World Cup",
