@@ -473,6 +473,12 @@ body[data-view="listDay"]  .fc .fc-list-event-time { font-size: 11px; }
 
 /* --- Month view events --- */
 .fc-dayGridMonth-view .fc-event { font-size: 11px; padding: 2px 6px; }
+/* Center matchup title inside each Month-view tile (default is left). */
+body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-title,
+body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
+  text-align: center;
+  width: 100%;
+}
 
 /* --- LIST / AGENDA view --- */
 .fc .fc-list { border: none; }

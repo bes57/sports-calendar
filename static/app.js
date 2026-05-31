@@ -391,6 +391,12 @@
     eventMinHeight: 6,   // let very short events (wrap tails, 10-min slivers)
                          // render at their true proportional height instead
                          // of being padded out to look like longer ones
+    // A game ending at 1 AM next day shouldn't render on that next day in
+    // Month view. nextDayThreshold = 6 AM means anything ending before 6 AM
+    // on day N+1 belongs to day N only (no cross-cell banner with a flat
+    // left edge on the second day). Late-morning carryovers (>6 AM) still
+    // span both days correctly.
+    nextDayThreshold: '06:00:00',
     dayMaxEvents: 6,
     weekends: true,
     firstDay: 0,
