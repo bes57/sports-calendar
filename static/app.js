@@ -523,17 +523,12 @@
       document.body.dataset.view = info.view.type;
       updateTodayButtonText(info.view.type);
       scheduleUniformizeWeek();
-      // Carryover events (e.g. overnight games from the previous week / 3-Day
-      // window that bleed into the new one) reuse the same DOM element across
-      // navigation, so their mount-in CSS animation never replays. Force-
-      // restart the animation on every tile so the whole grid eases in
-      // together — agenda rows are excluded via the :not selector.
-      requestAnimationFrame(() => {
-        document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
-          el.style.animation = 'none';
-          void el.offsetWidth;     // force reflow so the next assignment restarts the animation
-          el.style.animation = '';
-        });
+      // Hide every existing event tile immediately so cross-range carryovers
+      // (overnight games that span the navigation boundary) don't sit visibly
+      // present while everything else is empty waiting on the fetch. They'll
+      // be revealed together with newly-mounted tiles in eventsSet.
+      document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
+        el.style.opacity = '0';
       });
     },
     viewDidMount: (info) => {
@@ -545,6 +540,16 @@
     },
     eventsSet: () => {
       scheduleUniformizeWeek();
+      // Reveal hidden carryovers + restart the mount animation on every tile
+      // so the whole grid eases in together (carryover + newly fetched).
+      requestAnimationFrame(() => {
+        document.querySelectorAll('.fc-event:not(.fc-list-event)').forEach(el => {
+          el.style.opacity = '';
+          el.style.animation = 'none';
+          void el.offsetWidth;     // force reflow so the assignment below restarts the animation
+          el.style.animation = '';
+        });
+      });
     }
     };  // end buildCalendarOptions return
   }
