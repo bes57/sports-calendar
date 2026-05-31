@@ -145,7 +145,13 @@
         const r = h.getBoundingClientRect();
         return { h, top: r.top, bottom: r.bottom, level: 0, cluster: -1 };
       });
-      items.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
+      // Sort by top ASC, then duration DESC. Tiles starting at the same y
+      // (e.g. midnight) but with very different durations — like a tiny MLB
+      // carryover (~30 min) sharing a slot with a fresh 2 h WC match — used
+      // to give the carryover level 0 (column-left), pushing the long match
+      // to the right. With duration-DESC, the dominant event takes the
+      // primary left slot and the tail-end carryovers stack to its right.
+      items.sort((a, b) => a.top - b.top || (b.bottom - b.top) - (a.bottom - a.top));
 
       // Level assignment (greedy lowest-unused level among prior overlaps).
       // Tolerance: a 2 px slack so a carryover overnighter ending exactly
