@@ -154,11 +154,12 @@
       items.sort((a, b) => a.top - b.top || (b.bottom - b.top) - (a.bottom - a.top));
 
       // Level assignment (greedy lowest-unused level among prior overlaps).
-      // Tolerance: a 2 px slack so a carryover overnighter ending exactly
-      // at midnight clusters with a tile starting exactly at midnight (their
-      // pixel rects touch but don't strictly overlap by default — which left
-      // them in independent clusters, both at level 0, visually overlapping).
-      const OVERLAP_TOL = 2;
+      // Tolerance: 20 px slack (~40 minutes at our pixel-to-time ratio) so
+      // tiles that are vertically close but not strictly overlapping still
+      // cluster together — otherwise two tiles in separate clusters both
+      // try to take level 0 (column-left) and visually overlap. The tolerance
+      // doesn't widen any single tile, it just decides who shares a column.
+      const OVERLAP_TOL = 20;
       function _vOverlap(a, b) {
         return a.bottom + OVERLAP_TOL > b.top && a.top < b.bottom + OVERLAP_TOL;
       }
