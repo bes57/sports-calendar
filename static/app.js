@@ -81,19 +81,172 @@
   // pill mode in a specific view again.
   function isPillModeView() { return false; }
 
-  function uniformizeWeekTiles() {
-    // Always reset every harness first AND clear any leftover inline
-    // display:none on title/time text (from older code paths).
+  // Day / 3-Day shingle. FC's slotEventOverlap doesn't behave like Google
+  // Calendar nesting in v6, so we lay tiles out ourselves: each event tile
+  // spans the full column minus a left offset scaled to the deepest overlap
+  // in its column, so even the back-most tile keeps ~MIN_VISIBLE pixels free
+  // on the left for its title.
+  // Week view: pack each day-column with skinny fixed-width tiles, lined up
+  // from the left. They stay entirely inside their day's column — never
+  // spill into the next day. If the day has more overlapping events than fit
+  // naturally, tiles overlap *within* the day rather than expanding outward.
+  function packWeekTiles() {
+    const TILE_WIDTH = 14;
+    const TILE_GAP = 1;
+    document.querySelectorAll('.fc-timegrid-col-events').forEach(colEvents => {
+      const harnesses = Array.from(colEvents.querySelectorAll('.fc-timegrid-event-harness'));
+      if (!harnesses.length) return;
+      const colWidth = colEvents.getBoundingClientRect().width;
+      const items = harnesses.map(h => {
+        const r = h.getBoundingClientRect();
+        return { h, top: r.top, bottom: r.bottom, level: 0 };
+      });
+      items.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
+      let maxLevel = 0;
+      items.forEach((item, i) => {
+        const taken = new Set();
+        for (let j = 0; j < i; j++) {
+          if (items[j].bottom > item.top && items[j].top < item.bottom) {
+            taken.add(items[j].level);
+          }
+        }
+        let level = 0;
+        while (taken.has(level)) level++;
+        item.level = level;
+        if (level > maxLevel) maxLevel = level;
+      });
+      const naturalPitch = TILE_WIDTH + TILE_GAP;
+      const maxRightEdge = colWidth - TILE_WIDTH;
+      const pitch = maxLevel === 0
+        ? 0
+        : Math.min(naturalPitch, maxRightEdge / maxLevel);
+      items.forEach(item => {
+        const offset = item.level * pitch;
+        item.h.style.left = offset + 'px';
+        item.h.style.width = TILE_WIDTH + 'px';
+        item.h.style.right = 'auto';
+        item.h.style.insetInlineStart = offset + 'px';
+        item.h.style.insetInlineEnd = 'auto';
+        item.h.style.zIndex = String(item.level + 1);
+      });
+    });
+  }
+
+  function shingleDay3DayTiles() {
+    // Each tile is ~TILE_RATIO of the column width (or MIN_TILE_PX, whichever
+    // is bigger). The leftover space is divided evenly across the overlap
+    // levels so tiles spread across the column instead of stacking over each
+    // other. Bigger TILE_RATIO = wider tiles; smaller = narrower.
+    const TILE_RATIO = 0.55;
+    const MIN_TILE_PX = 80;
+    document.querySelectorAll('.fc-timegrid-col-events').forEach(colEvents => {
+      const harnesses = Array.from(colEvents.querySelectorAll('.fc-timegrid-event-harness'));
+      if (!harnesses.length) return;
+      const colWidth = colEvents.getBoundingClientRect().width;
+      const items = harnesses.map(h => {
+        const r = h.getBoundingClientRect();
+        return { h, top: r.top, bottom: r.bottom, level: 0 };
+      });
+      items.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
+      let maxLevel = 0;
+      items.forEach((item, i) => {
+        const taken = new Set();
+        for (let j = 0; j < i; j++) {
+          if (items[j].bottom > item.top && items[j].top < item.bottom) {
+            taken.add(items[j].level);
+          }
+        }
+        let level = 0;
+        while (taken.has(level)) level++;
+        item.level = level;
+        if (level > maxLevel) maxLevel = level;
+      });
+      // Solo column → tile spans full width (no point shrinking it).
+      const tileWidth = maxLevel === 0
+        ? colWidth
+        : Math.max(MIN_TILE_PX, colWidth * TILE_RATIO);
+      const offsetPerLevel = maxLevel === 0
+        ? 0
+        : (colWidth - tileWidth) / maxLevel;
+      items.forEach(item => {
+        const offset = item.level * offsetPerLevel;
+        item.h.style.left = offset + 'px';
+        item.h.style.width = tileWidth + 'px';
+        item.h.style.right = 'auto';
+        item.h.style.insetInlineStart = offset + 'px';
+        item.h.style.insetInlineEnd = 'auto';
+        item.h.style.zIndex = String(item.level + 1);
+      });
+    });
+  }
+
+  // Events that cross midnight render as two harnesses — one per day column.
+  // FC lays each day out independently, so a game appearing at the right side
+  // of Mon at 11pm can end up at the left side of Tue at 12am, which reads as
+  // visual noise. Pin every secondary segment's left/right inset to whatever
+  // the earliest-day segment got, so the same event keeps the same x-position
+  // across days.
+  function alignCrossDayEvents() {
+    const tilesByEvent = new Map();
+    document.querySelectorAll(
+      '.fc-timegrid-col-events .fc-timegrid-event-harness'
+    ).forEach(harness => {
+      const eventEl = harness.querySelector('.fc-timegrid-event[data-cal-event-id]');
+      if (!eventEl) return;
+      const id = eventEl.dataset.calEventId;
+      const colEvents = harness.closest('.fc-timegrid-col-events');
+      const col = colEvents && colEvents.closest('.fc-timegrid-col');
+      const date = col && col.dataset.date;
+      if (!colEvents || !date) return;
+      if (!tilesByEvent.has(id)) tilesByEvent.set(id, []);
+      tilesByEvent.get(id).push({ harness, colEvents, date });
+    });
+    tilesByEvent.forEach(tiles => {
+      if (tiles.length < 2) return;
+      tiles.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+      const primary = tiles[0];
+      const pRect = primary.harness.getBoundingClientRect();
+      const pColRect = primary.colEvents.getBoundingClientRect();
+      const leftPx = pRect.left - pColRect.left;
+      const widthPx = pRect.width;
+      tiles.slice(1).forEach(t => {
+        t.harness.style.left = leftPx + 'px';
+        t.harness.style.width = widthPx + 'px';
+        t.harness.style.right = 'auto';
+        t.harness.style.insetInlineStart = leftPx + 'px';
+        t.harness.style.insetInlineEnd = 'auto';
+      });
+    });
+  }
+
+  function _resetHarnessStyles() {
     document.querySelectorAll('.fc-timegrid-event-harness').forEach(h => {
       h.style.width = '';
       h.style.maxWidth = '';
-      h.style.insetInlineEnd = '';
+      h.style.left = '';
       h.style.right = '';
+      h.style.insetInlineStart = '';
+      h.style.insetInlineEnd = '';
+      h.style.zIndex = '';
     });
+  }
+
+  function uniformizeWeekTiles() {
+    const view = document.body.dataset.view;
+    // Only reset harness inline styles for views we then re-layout ourselves.
+    // Other views (Month) leave FC's positioning alone.
+    if (view === 'threeDay' || view === 'timeGridDay') {
+      _resetHarnessStyles();
+      shingleDay3DayTiles();
+      alignCrossDayEvents();
+    } else if (view === 'timeGridWeek') {
+      _resetHarnessStyles();
+      packWeekTiles();
+      alignCrossDayEvents();
+    }
     document.querySelectorAll('.fc-event-title, .fc-event-time').forEach(el => {
       el.style.display = '';
     });
-    // Update body attribute so CSS knows whether pill mode is on.
     document.body.dataset.pill = isPillModeView() ? 'on' : 'off';
     if (!isPillModeView()) return;
     const harnesses = document.querySelectorAll(
@@ -241,6 +394,10 @@
       const ep = info.event.extendedProps || {};
       const bg = info.event.backgroundColor;
       const view = info.view.type;
+
+      // Tag every rendered tile with its event id so alignCrossDayEvents()
+      // can re-locate the same event across day columns.
+      info.el.dataset.calEventId = info.event.id;
 
       // Tooltip with full title (for narrow time-grid tiles)
       const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.broadcast ? '\n' + ep.broadcast : ''}`;

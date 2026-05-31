@@ -29,8 +29,36 @@ load_dotenv()
 BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="Sports Calendar")
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+
+class _NoCacheStaticFiles(StaticFiles):
+    """StaticFiles wrapper that forbids browser caching. Without this, a soft
+    reload can serve cached HTML referencing a stale asset_version, which then
+    pulls a stale JS from cache and edits look like no-ops in the browser."""
+
+    async def get_response(self, path, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+
+app.mount("/static", _NoCacheStaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+@app.middleware("http")
+async def _no_cache_html(request: Request, call_next):
+    """Mirror the static no-cache policy for HTML responses so cached HTML
+    can't pin the page to an obsolete asset_version."""
+    response = await call_next(request)
+    ctype = response.headers.get("content-type", "")
+    if ctype.startswith("text/html"):
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 @app.on_event("startup")

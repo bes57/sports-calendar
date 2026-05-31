@@ -315,13 +315,19 @@ body[data-pill="on"] .fc-timegrid-event .fc-event-time {
   display: none !important;
 }
 
-/* Month view: hide titles on dot events so they render as colored dots.
-   (Week-view text-hiding is now handled in JS eventDidMount per-event,
-   which is bulletproof against view-class mismatches.) */
+/* Month view: hide titles on dot events so they render as colored dots. */
 body[data-view="dayGridMonth"] .fc-daygrid-dot-event .fc-event-title,
 body[data-view="dayGridMonth"] .fc-daygrid-dot-event .fc-event-time {
   display: none !important;
 }
+
+/* Week view: skinny pills with no titles — Day & 3-Day get the wider
+   shingle-with-titles layout via JS instead. */
+body[data-view="timeGridWeek"] .fc-timegrid-event .fc-event-title,
+body[data-view="timeGridWeek"] .fc-timegrid-event .fc-event-time {
+  display: none !important;
+}
+
 .fc-timegrid-event, .fc-timegrid-event .fc-event-main {
   border-radius: 6px;
   border: none;
