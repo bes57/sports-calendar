@@ -184,6 +184,39 @@ LEAGUES: list[League] = [
         fetch_days_ahead=365,  # tours scheduled a year+ in advance
     ),
     League(
+        id="t20i", name="T20I", full_name="Men's International T20 Cricket",
+        color="#84CC16",  # lime-500 — distinct from IPL green & ODI emerald
+        source="espn_multi", source_args={
+            "sport": "cricket",
+            # Same per-tour ID architecture as ODI. Filtered to ICC Full Members
+            # only (no associate-nation T20I tri-series etc.).
+            "leagues": [
+                "23219",  # West Indies in South Africa T20I Series 2025/26
+                "23692",  # New Zealand in India T20I Series 2025/26
+                "23719",  # South Africa in New Zealand T20I Series 2025/26
+                "23801",  # Sri Lanka in England T20I Series 2026
+                "23809",  # India in England T20I Series 2026
+                "23986",  # England in Sri Lanka T20I Series 2025/26
+                "24070",  # Pakistan in Sri Lanka T20I Series 2025/26
+                "24085",  # Afghanistan v West Indies T20I Series 2025/26
+                "24120",  # Australia in Pakistan T20I Series 2025/26
+                "24197",  # Bangladesh in South Africa T20I Series 2026/27
+                "24242",  # New Zealand in Bangladesh T20I Series 2026
+                "24257",  # India in Ireland T20I Series 2026
+                "24271",  # England in Australia T20I Series 2026/27
+                "24284",  # Sri Lanka in India T20I Series 2026/27
+                "24287",  # West Indies in India T20I Series 2026/27
+                "24300",  # India in Zimbabwe T20I Series 2026
+                "24322",  # Australia in Bangladesh T20I Series 2026
+                "24417",  # Bangladesh in Zimbabwe T20I Series 2026
+                "24421",  # Sri Lanka in West Indies T20I Series 2026
+            ],
+        },
+        duration_hours=3.5,  # T20s are 20 overs/side — ~3.5h with breaks
+        group="Cricket",
+        fetch_days_ahead=365,
+    ),
+    League(
         id="valorant", name="Valorant", full_name="Valorant Champions Tour",
         color="#7C3AED",  # purple
         source="valorant", source_args={},
