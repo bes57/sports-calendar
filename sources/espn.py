@@ -310,3 +310,38 @@ def _league_id_from_args(sport: str, league: str) -> str:
     if league == "8048" and sport == "cricket":
         return "ipl"
     return league
+
+
+def fetch_espn_multi(source_args: dict, days_ahead: int) -> list[Event]:
+    """Fetch multiple ESPN league IDs and merge them under a single internal
+    league. Needed for cricket ODIs — ESPN gives every bilateral tour its own
+    league ID, so "ODI cricket" is really an aggregation of many tour IDs.
+
+    Expected source_args:
+      - sport: ESPN sport slug (e.g. "cricket")
+      - leagues: list of ESPN league IDs (strings) to fetch and merge
+      - league_id_in_db: our internal league id (passed by refresh.py)
+      - other fetch_espn args (duration_hours, multi_day, note_contains, …)
+        forwarded verbatim to each sub-fetch.
+    """
+    leagues = source_args.get("leagues") or []
+    if not leagues:
+        return []
+    seen_ids: set[str] = set()
+    out: list[Event] = []
+    for lg in leagues:
+        sub_args = dict(source_args)
+        sub_args.pop("leagues", None)
+        sub_args["league"] = str(lg)
+        try:
+            events = fetch_espn(sub_args, days_ahead)
+        except Exception:
+            # One bad/expired tour ID shouldn't kill the whole ODI fetch —
+            # ESPN returns 404 once a series falls out of its data window.
+            continue
+        for e in events:
+            if e.source_id in seen_ids:
+                continue
+            seen_ids.add(e.source_id)
+            out.append(e)
+    return out

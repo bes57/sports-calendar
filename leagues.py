@@ -142,6 +142,48 @@ LEAGUES: list[League] = [
         group="Cricket",
     ),
     League(
+        id="odi", name="ODI", full_name="Men's International ODI Cricket",
+        color="#047857",  # emerald-700 — distinct from IPL #16A34A
+        source="espn_multi", source_args={
+            "sport": "cricket",
+            # ESPN has no single "ODI" league; every bilateral tour gets its
+            # own league id, so we curate the set of senior-men's ODI series.
+            # Update this list when new tours appear (find via the cricbuzz
+            # international schedule, then probe ESPN ids for matching name).
+            "leagues": [
+                "23275",  # South Africa in India ODI Series 2025/26
+                "23693",  # New Zealand in India ODI Series 2025/26
+                "23725",  # West Indies in New Zealand ODI Series 2025/26
+                "23728",  # England in New Zealand ODI Series 2025/26
+                "23800",  # Sri Lanka in England ODI Series 2026
+                "23807",  # India in England ODI Series 2026
+                "23910",  # Sri Lanka in Pakistan ODI Series 2025/26
+                "23956",  # West Indies in Bangladesh ODI Series 2025/26
+                "23987",  # England in Sri Lanka ODI Series 2025/26
+                "24195",  # England in South Africa ODI Series 2026/27
+                "24199",  # Bangladesh in South Africa ODI Series 2026/27
+                "24202",  # Australia in South Africa ODI Series 2026/27
+                "24204",  # Afghanistan v Sri Lanka ODI Series 2025/26
+                "24208",  # Pakistan in Bangladesh ODI Series 2025/26
+                "24225",  # Afghanistan in India ODI Series 2026
+                "24262",  # Afghanistan in Ireland ODI Series 2026
+                "24272",  # England in Australia ODI Series 2026/27
+                "24282",  # Zimbabwe in India ODI Series 2026/27
+                "24285",  # Sri Lanka in India ODI Series 2026/27
+                "24288",  # West Indies in India ODI Series 2026/27
+                "24302",  # Australia in Zimbabwe ODI Series 2026
+                "24323",  # Australia in Bangladesh ODI Series 2026
+                "24378",  # Australia in Pakistan ODI Series 2026
+                "24418",  # Bangladesh in Zimbabwe ODI Series 2026
+                "24422",  # Sri Lanka in West Indies ODI Series 2026
+                "24437",  # New Zealand in West Indies ODI Series 2026
+            ],
+        },
+        duration_hours=8.0,  # ODIs are 50 overs/side — ~8h with breaks
+        group="Cricket",
+        fetch_days_ahead=365,  # tours scheduled a year+ in advance
+    ),
+    League(
         id="valorant", name="Valorant", full_name="Valorant Champions Tour",
         color="#7C3AED",  # purple
         source="valorant", source_args={},
