@@ -366,7 +366,12 @@
   // (e.g. "fourDay" from a previous build) doesn't render blank.
   const VALID_VIEWS = ['threeDay', 'timeGridWeek', 'timeGridDay', 'dayGridMonth', 'listWeek', 'listDay'];
   const savedView = localStorage.getItem(VIEW_KEY);
-  const initialView = VALID_VIEWS.includes(savedView) ? savedView : 'threeDay';
+  // On mobile, default to a single Day so the calendar isn't wider than the
+  // viewport. Desktop default stays at 3-Day. A saved view (if valid) wins
+  // on either platform.
+  const isMobile = window.matchMedia('(max-width: 720px)').matches;
+  const defaultView = isMobile ? 'timeGridDay' : 'threeDay';
+  const initialView = VALID_VIEWS.includes(savedView) ? savedView : defaultView;
 
   // Timezone — defaults to the browser's local zone if nothing saved
   const savedTz = localStorage.getItem(TZ_KEY) || 'local';
@@ -800,6 +805,26 @@
   });
   // Initial sync — saved state might have left groups partially checked.
   syncGroupCheckboxes();
+
+  // Mobile sidebar drawer toggle. Hamburger button is only rendered on the
+  // calendar page; CSS hides it >720px so this no-ops on desktop.
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = document.body.classList.toggle('sidebar-open');
+      sidebarToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    // Backdrop click (anything outside the drawer + toggle) dismisses the
+    // drawer. Inputs inside the drawer must keep working, so we only close
+    // when the target is genuinely outside.
+    document.addEventListener('click', (e) => {
+      if (!document.body.classList.contains('sidebar-open')) return;
+      if (e.target.closest('.sidebar') || e.target.closest('#sidebar-toggle')) return;
+      document.body.classList.remove('sidebar-open');
+      sidebarToggle.setAttribute('aria-expanded', 'false');
+    });
+  }
 
   // Refresh button
   const refreshBtn = document.getElementById('refresh-btn');

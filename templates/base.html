@@ -12,10 +12,13 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      <a href="/">K-Cal</a>
-      <span style="font-size:11px;color:#94A3B8;margin-left:10px;font-weight:500;">build {{ asset_version }}</span>
+    <div class="header-left">
+      {% block header_left %}{% endblock %}
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <a href="/">K-Cal</a>
+        <span class="build-tag">build {{ asset_version }}</span>
+      </div>
     </div>
     <nav>
       <a href="/">Calendar</a>
