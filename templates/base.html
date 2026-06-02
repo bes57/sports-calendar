@@ -26,21 +26,22 @@
     {% block content %}{% endblock %}
   </main>
   <script>
-    // Comb-brush sound on rainbow-logo click: ~36 filtered-noise ticks
-    // ramping from fast to slow, like a finger losing momentum across teeth.
+    // Rapid plastic-button-click burst on rainbow-logo click: each click is
+    // a bandpassed noise transient + brief square-wave body, both very
+    // tight (~12 ms total) so it reads as a hard click, not a resonant tap.
     (function () {
       const dot = document.querySelector('.brand-dot');
       if (!dot) return;
       dot.style.cursor = 'pointer';
       dot.setAttribute('role', 'button');
-      dot.setAttribute('aria-label', 'Comb brush');
+      dot.setAttribute('aria-label', 'Click');
       let ctx, noiseBuf;
       function ensureCtx() {
         if (!ctx) {
           const AC = window.AudioContext || window.webkitAudioContext;
           if (!AC) return null;
           ctx = new AC();
-          const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.012), ctx.sampleRate);
+          const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.006), ctx.sampleRate);
           const d = buf.getChannelData(0);
           for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
           noiseBuf = buf;
@@ -48,34 +49,61 @@
         if (ctx.state === 'suspended') ctx.resume();
         return ctx;
       }
-      function tick(c, when, gain) {
-        const src = c.createBufferSource();
-        src.buffer = noiseBuf;
-        const filt = c.createBiquadFilter();
-        filt.type = 'bandpass';
-        filt.frequency.value = 2200 + Math.random() * 1200;
-        filt.Q.value = 6;
-        const g = c.createGain();
-        g.gain.setValueAtTime(0, when);
-        g.gain.linearRampToValueAtTime(gain, when + 0.0004);
-        g.gain.exponentialRampToValueAtTime(0.0001, when + 0.009);
-        src.connect(filt).connect(g).connect(c.destination);
-        src.start(when);
-        src.stop(when + 0.014);
+      function clk(c, when, gain) {
+        // Bandpassed noise: the hard plastic "clack".
+        const nSrc = c.createBufferSource();
+        nSrc.buffer = noiseBuf;
+        const bp = c.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 2800;
+        bp.Q.value = 4;
+        const nG = c.createGain();
+        nG.gain.setValueAtTime(gain * 0.7, when);
+        nG.gain.exponentialRampToValueAtTime(0.0001, when + 0.010);
+        nSrc.connect(bp).connect(nG).connect(c.destination);
+        nSrc.start(when);
+        nSrc.stop(when + 0.012);
+        // Square body: a hint of pitched character so it reads as a button.
+        const osc = c.createOscillator();
+        osc.type = 'square';
+        osc.frequency.value = 1300;
+        const oG = c.createGain();
+        oG.gain.setValueAtTime(0, when);
+        oG.gain.linearRampToValueAtTime(gain * 0.35, when + 0.0005);
+        oG.gain.exponentialRampToValueAtTime(0.0001, when + 0.012);
+        osc.connect(oG).connect(c.destination);
+        osc.start(when);
+        osc.stop(when + 0.015);
       }
       dot.addEventListener('click', (e) => {
         e.preventDefault();
         const c = ensureCtx();
         if (!c) return;
-        const N = 36;
+        const N = 22;
+        const startSpacing = 0.018;  // ~55 clicks/sec at the start
+        const endSpacing = 0.075;    // ~13 clicks/sec at the end — losing momentum
         let t = c.currentTime + 0.01;
+        const startT = t;
+        const offsets = [0];
         for (let i = 0; i < N; i++) {
-          const progress = i / N;
-          const dt = 0.009 + progress * 0.014 + Math.random() * 0.003;
-          const gain = 0.22 + Math.random() * 0.10;
-          tick(c, t, gain);
+          clk(c, t, 0.30);
+          const progress = N > 1 ? i / (N - 1) : 0;
+          const dt = startSpacing + (endSpacing - startSpacing) * progress;
           t += dt;
+          offsets.push(t - startT);
         }
+        // Spin the dot in lockstep with the clicks — each click advances the
+        // rotation one fixed notch, so the spin naturally decelerates as the
+        // clicks do. Linear easing, since the deceleration is in the offsets.
+        const totalSec = offsets[offsets.length - 1];
+        const TOTAL_DEG = 1440;  // 4 rotations
+        const stepDeg = TOTAL_DEG / N;
+        const keyframes = offsets.map((off, i) => ({
+          offset: off / totalSec,
+          transform: `rotate(${i * stepDeg}deg)`,
+        }));
+        dot.getAnimations().forEach(a => a.cancel());
+        dot.animate(keyframes, { duration: totalSec * 1000, easing: 'linear', fill: 'none' });
       });
     })();
   </script>
