@@ -91,27 +91,36 @@
         e.preventDefault();
         const c = ensureCtx();
         if (!c) return;
-        // Bell-curve timing: slow at the start, fastest in the middle, slow
-        // at the end. Spacing follows max - (max-min) * sin(π * progress), so
-        // the rate accelerates in, peaks, then decelerates out — a wind-up
-        // and wind-down feel rather than a flat ramp.
-        const N = 30;
-        const minSpacing = 0.022;  // ~45 clicks/sec at the peak
-        const maxSpacing = 0.110;  // ~9 clicks/sec at the gentle edges
+        // Asymmetric timing: short ease-out wind-up to peak, then long
+        // geometric tail so deceleration is gradual and the stop is gentle.
+        //   Wind-up: 6 clicks, ease-out from startSpacing → minSpacing.
+        //   Tail:   24 clicks, spacing grows by tailGrowth each click.
+        const WIND_UP = 6;
+        const TAIL = 24;
+        const N = WIND_UP + TAIL;
+        const startSpacing = 0.075;  // ~13 clicks/sec at the very start
+        const minSpacing = 0.013;    // ~77 clicks/sec at the peak
+        const tailGrowth = 1.095;    // each tail gap ~9.5% longer than the last
         let t = c.currentTime + 0.01;
         const startT = t;
         const offsets = [0];
         for (let i = 0; i < N; i++) {
           clk(c, t, 0.30);
-          const progress = N > 1 ? i / (N - 1) : 0;
-          const dt = maxSpacing - (maxSpacing - minSpacing) * Math.sin(Math.PI * progress);
+          let dt;
+          if (i < WIND_UP) {
+            const p = i / (WIND_UP - 1);          // 0..1 across wind-up
+            const ease = 1 - Math.pow(1 - p, 2);  // ease-out quad
+            dt = startSpacing - (startSpacing - minSpacing) * ease;
+          } else {
+            const tailIdx = i - WIND_UP;          // 0 at first tail click
+            dt = minSpacing * Math.pow(tailGrowth, tailIdx);
+          }
           t += dt;
           offsets.push(t - startT);
         }
         // Spin the dot in lockstep with the clicks — each click advances
         // the rotation one fixed notch, so the spin's velocity curve mirrors
-        // the click-rate curve: winds up, peaks, winds down. Linear easing
-        // since the curve is encoded in the keyframe offsets.
+        // the click-rate curve: quick wind-up, blur at peak, long coast-out.
         const totalSec = offsets[offsets.length - 1];
         const TOTAL_DEG = 1800;  // 5 rotations
         const stepDeg = TOTAL_DEG / N;
