@@ -50,53 +50,70 @@
         return ctx;
       }
       function clk(c, when, gain) {
-        // Bandpassed noise: the hard plastic "clack".
+        // Layer 1 — HF noise "snap": the sharp attack transient.
         const nSrc = c.createBufferSource();
         nSrc.buffer = noiseBuf;
         const bp = c.createBiquadFilter();
         bp.type = 'bandpass';
-        bp.frequency.value = 2800;
-        bp.Q.value = 4;
+        bp.frequency.value = 3600;
+        bp.Q.value = 8;
         const nG = c.createGain();
-        nG.gain.setValueAtTime(gain * 0.7, when);
-        nG.gain.exponentialRampToValueAtTime(0.0001, when + 0.010);
+        nG.gain.setValueAtTime(gain * 0.85, when);
+        nG.gain.exponentialRampToValueAtTime(0.0001, when + 0.008);
         nSrc.connect(bp).connect(nG).connect(c.destination);
         nSrc.start(when);
-        nSrc.stop(when + 0.012);
-        // Square body: a hint of pitched character so it reads as a button.
-        const osc = c.createOscillator();
-        osc.type = 'square';
-        osc.frequency.value = 1300;
-        const oG = c.createGain();
-        oG.gain.setValueAtTime(0, when);
-        oG.gain.linearRampToValueAtTime(gain * 0.35, when + 0.0005);
-        oG.gain.exponentialRampToValueAtTime(0.0001, when + 0.012);
-        osc.connect(oG).connect(c.destination);
-        osc.start(when);
-        osc.stop(when + 0.015);
+        nSrc.stop(when + 0.010);
+        // Layer 2 — pitched mid square: the button "click" character.
+        const sq = c.createOscillator();
+        sq.type = 'square';
+        sq.frequency.value = 1100;
+        const sqG = c.createGain();
+        sqG.gain.setValueAtTime(0, when);
+        sqG.gain.linearRampToValueAtTime(gain * 0.28, when + 0.0005);
+        sqG.gain.exponentialRampToValueAtTime(0.0001, when + 0.014);
+        sq.connect(sqG).connect(c.destination);
+        sq.start(when);
+        sq.stop(when + 0.016);
+        // Layer 3 — sub thump with quick pitch drop: the "tok" body weight.
+        const sub = c.createOscillator();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(190, when);
+        sub.frequency.exponentialRampToValueAtTime(85, when + 0.022);
+        const subG = c.createGain();
+        subG.gain.setValueAtTime(0, when);
+        subG.gain.linearRampToValueAtTime(gain * 0.55, when + 0.0008);
+        subG.gain.exponentialRampToValueAtTime(0.0001, when + 0.030);
+        sub.connect(subG).connect(c.destination);
+        sub.start(when);
+        sub.stop(when + 0.035);
       }
       dot.addEventListener('click', (e) => {
         e.preventDefault();
         const c = ensureCtx();
         if (!c) return;
-        const N = 22;
-        const startSpacing = 0.018;  // ~55 clicks/sec at the start
-        const endSpacing = 0.075;    // ~13 clicks/sec at the end — losing momentum
+        // Bell-curve timing: slow at the start, fastest in the middle, slow
+        // at the end. Spacing follows max - (max-min) * sin(π * progress), so
+        // the rate accelerates in, peaks, then decelerates out — a wind-up
+        // and wind-down feel rather than a flat ramp.
+        const N = 30;
+        const minSpacing = 0.022;  // ~45 clicks/sec at the peak
+        const maxSpacing = 0.110;  // ~9 clicks/sec at the gentle edges
         let t = c.currentTime + 0.01;
         const startT = t;
         const offsets = [0];
         for (let i = 0; i < N; i++) {
           clk(c, t, 0.30);
           const progress = N > 1 ? i / (N - 1) : 0;
-          const dt = startSpacing + (endSpacing - startSpacing) * progress;
+          const dt = maxSpacing - (maxSpacing - minSpacing) * Math.sin(Math.PI * progress);
           t += dt;
           offsets.push(t - startT);
         }
-        // Spin the dot in lockstep with the clicks — each click advances the
-        // rotation one fixed notch, so the spin naturally decelerates as the
-        // clicks do. Linear easing, since the deceleration is in the offsets.
+        // Spin the dot in lockstep with the clicks — each click advances
+        // the rotation one fixed notch, so the spin's velocity curve mirrors
+        // the click-rate curve: winds up, peaks, winds down. Linear easing
+        // since the curve is encoded in the keyframe offsets.
         const totalSec = offsets[offsets.length - 1];
-        const TOTAL_DEG = 1440;  // 4 rotations
+        const TOTAL_DEG = 1800;  // 5 rotations
         const stepDeg = TOTAL_DEG / N;
         const keyframes = offsets.map((off, i) => ({
           offset: off / totalSec,
