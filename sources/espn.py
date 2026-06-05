@@ -14,9 +14,11 @@ Two parser variants are exported:
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
+import pytz
 
 from db import Event
 from timeutil import to_utc_iso
@@ -143,6 +145,70 @@ def _event_url(e: dict) -> str | None:
     return links[0]["href"] if links and links[0].get("href") else None
 
 
+# --- Per-league source URLs -------------------------------------------------
+# ESPN gives us a perfectly good ESPN link via _event_url(), but for a few
+# leagues we'd rather point users to the league's own site (better data for
+# the use case the user actually cares about). Per-game deep links require
+# IDs ESPN doesn't expose (MLB gamePk, NHL gameId, realsports.io short hash),
+# and the user explicitly didn't want a second API fetch — so for those we
+# link to the date-scoped scoreboard instead, which is the best we can do
+# without leaving the ESPN dataset. UFC is the only league where the full
+# per-event slug is constructable from ESPN's title + start time.
+
+_ET = pytz.timezone("America/New_York")
+
+
+def _start_in_et(start_iso: str) -> datetime | None:
+    try:
+        dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return dt.astimezone(_ET)
+
+
+def _ufc_url(title: str, start_iso: str) -> str | None:
+    """Build a ufc.com event URL from the ESPN title + start time.
+
+    ESPN titles seen in practice:
+      "UFC Fight Night: Muhammad vs. Bonfim"  -> /event/ufc-fight-night-june-06-2026
+      "UFC 329: McGregor vs. Holloway 2"      -> /event/ufc-329
+      "UFC Freedom 250: Topuria vs. Gaethje"  -> /event/ufc-freedom-250
+    """
+    head = (title or "").split(":", 1)[0].strip()
+    if not head:
+        return None
+    if head.lower() == "ufc fight night":
+        et = _start_in_et(start_iso)
+        if not et:
+            return None
+        # UFC.com slug uses lowercase full month + zero-padded day in US Eastern.
+        return f"https://www.ufc.com/event/ufc-fight-night-{et.strftime('%B-%d-%Y').lower()}"
+    slug = re.sub(r"[^a-z0-9]+", "-", head.lower()).strip("-")
+    return f"https://www.ufc.com/event/{slug}" if slug else None
+
+
+def _preferred_url(league_id: str, title: str, start_iso: str, fallback: str | None) -> str | None:
+    """Return the per-league preferred source URL, falling back to ESPN."""
+    if league_id == "ufc":
+        return _ufc_url(title, start_iso) or fallback
+    if league_id in ("mlb", "nhl"):
+        # Daily scoreboard on the league's own site. The user prefers these
+        # over ESPN; a per-game URL would need an ID we don't fetch.
+        et = _start_in_et(start_iso)
+        if not et:
+            return fallback
+        date_str = et.strftime("%Y-%m-%d")
+        host = "www.mlb.com" if league_id == "mlb" else "www.nhl.com"
+        return f"https://{host}/scores/{date_str}"
+    if league_id == "wnba":
+        # realsports.io game URLs are server-generated opaque short codes
+        # (e.g. /rYTmf1Fem9y); there's no public way to construct them from
+        # team + date. Link to the homepage so the user lands on the right
+        # site and can navigate from there.
+        return "https://www.realsports.io/"
+    return fallback
+
+
 def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
     sport = source_args["sport"]
     league = source_args["league"]
@@ -180,16 +246,17 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
             end_iso = _normalize_end(start, end, sport, duration_hours)
         title = e.get("name") or e.get("shortName") or "Untitled event"
         subtitle = e.get("description") or comp.get("description") or ""
+        start_canonical = _to_iso(start)
         out.append(Event(
             league=league_id,
             source_id=str(e["id"]),
             title=title,
             subtitle=subtitle,
-            start_utc=_to_iso(start),
+            start_utc=start_canonical,
             end_utc=_to_iso(end_iso) if end_iso else None,
             venue=_venue(comp),
             broadcast=_broadcast(comp),
-            url=_event_url(e),
+            url=_preferred_url(league_id, title, start_canonical, _event_url(e)),
             status=_status(comp),
             extra={
                 "short_name": e.get("shortName"),
