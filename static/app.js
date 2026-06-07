@@ -216,18 +216,22 @@
         const maxDesired = Math.max.apply(null, desired);
         const naturalPitch = maxDesired + gap;
         const totalAtNatural = count * naturalPitch - gap;
-        let pitch, scale;
+        let pitch;
         if (totalAtNatural <= colWidth) {
           pitch = naturalPitch;
-          scale = 1;
         } else {
-          // Cluster doesn't fit at natural widths. Shrink everything uniformly
-          // so the rightmost level still ends at the column edge.
+          // Cluster doesn't fit at natural widths. Shrink the pitch so the
+          // rightmost level ends at the column edge.
           pitch = Math.max(1, (colWidth + gap) / count);
-          scale = pitch / naturalPitch;
         }
+        // Each tile gets min(its own desired, pitch). Don't scale all tiles by
+        // the widest tile's title — that's how a single long-title minority
+        // tile (e.g. "LEVIATÁN vs Global Esports") used to halve every MLB
+        // tile in the same cluster on busy Sundays. Cap at pitch so tiles
+        // never run into the next level.
+        const tileMax = Math.max(1, pitch - gap);
         members.forEach((item, idx) => {
-          const w = Math.max(1, desired[idx] * scale);
+          const w = Math.max(1, Math.min(desired[idx], tileMax));
           const offset = item.level * pitch;
           item.h.style.left = offset + 'px';
           item.h.style.width = w + 'px';
