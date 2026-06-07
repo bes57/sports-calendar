@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 import time
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 from bs4 import BeautifulSoup
@@ -158,8 +159,16 @@ def _scrape_event_upcoming(client: httpx.Client, vlr_id: str, slug: str) -> list
     return out
 
 
+_VLR_TZ = ZoneInfo("America/New_York")
+
+
 def _scrape_match_utc(client: httpx.Client, match_id: str) -> str | None:
-    """Return the match's start time as ISO UTC, or None on failure."""
+    """Return the match's start time as ISO UTC, or None on failure.
+
+    `data-utc-ts` is misnamed: vlr.gg's value is the match's wall-clock time in
+    US Eastern (DST-aware), not UTC. Verified on 2026-06-06: data-utc-ts
+    "2026-06-07 10:00:00" renders as "7:00 AM PDT" on the page, i.e. 10 EDT.
+    """
     url = f"https://www.vlr.gg/{match_id}/"
     try:
         r = client.get(url)
@@ -170,9 +179,9 @@ def _scrape_match_utc(client: httpx.Client, match_id: str) -> str | None:
     el = soup.find("div", class_="moment-tz-convert", attrs={"data-utc-ts": True})
     if not el:
         return None
-    ts = el["data-utc-ts"]  # "2026-06-06 10:00:00"
+    ts = el["data-utc-ts"]  # "2026-06-06 10:00:00" — Eastern, despite the attribute name
     try:
-        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_VLR_TZ)
     except ValueError:
         return None
-    return dt.isoformat()
+    return dt.astimezone(timezone.utc).isoformat()
