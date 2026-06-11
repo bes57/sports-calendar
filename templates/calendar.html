@@ -97,11 +97,7 @@
 
 <script>
   window.SPORTS_CAL = {
-    leagues: {{ leagues_json | tojson }},
-    // Server-configured timezone (TZ env, defaults America/New_York). Used as
-    // the calendar's default zone when the user hasn't picked one, so the grid
-    // matches the digest instead of drifting to the browser's local zone.
-    tz: {{ tz | tojson }}
+    leagues: {{ leagues_json | tojson }}
   };
 </script>
 <script src="/static/app.js?v={{ asset_version }}"></script>

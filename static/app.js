@@ -377,11 +377,8 @@
   const defaultView = isMobile ? 'timeGridDay' : 'threeDay';
   const initialView = VALID_VIEWS.includes(savedView) ? savedView : defaultView;
 
-  // Timezone — defaults to the server-configured zone (TZ env, e.g.
-  // America/New_York) so the grid matches the digest. Only falls back to the
-  // browser's local zone if the server didn't supply one. An explicit user
-  // choice in the dropdown (saved to localStorage) always wins.
-  const savedTz = localStorage.getItem(TZ_KEY) || (window.SPORTS_CAL && window.SPORTS_CAL.tz) || 'local';
+  // Timezone — defaults to the browser's local zone if nothing saved
+  const savedTz = localStorage.getItem(TZ_KEY) || 'local';
   const tzSelect = document.getElementById('tz-select');
   if (tzSelect) tzSelect.value = savedTz;
 
