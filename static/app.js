@@ -591,9 +591,30 @@
 
   let calendar;  // will be assigned by mountCalendar()
 
+  // Format a whole number of minutes as FullCalendar's "HH:MM:00" duration.
+  function fmtDuration(min) {
+    const hh = String(Math.floor(min / 60)).padStart(2, '0');
+    const mm = String(min % 60).padStart(2, '0');
+    return `${hh}:${mm}:00`;
+  }
+  const _gcd = (a, b) => (b ? _gcd(b, a % b) : a);
+
   function mountCalendar(compactMode, preserveDate) {
-    const slotDur = compactMode ? pickCompactSlotDuration() : NORMAL_SLOT_DURATION;
-    const slotLabelInt = compactMode ? slotDur : NORMAL_LABEL_INTERVAL;
+    let slotDur, slotLabelInt;
+    if (compactMode) {
+      const min = pickCompactSlotDurationMin();
+      slotDur = fmtDuration(min);
+      // The label interval must be a whole number of hours AND a multiple of
+      // the slot size. Otherwise a 90-min slot labels at 1:30, 4:30, 7:30…,
+      // and slotLabelFormat (hour-only) FLOORS those to "1pm/4pm/7pm" — so the
+      // line claiming "4pm" actually sits at 4:30 and every tile looks ~30 min
+      // off. lcm(min, 60) is the smallest interval that lands exactly on the
+      // hour while still aligning to slot boundaries.
+      slotLabelInt = fmtDuration(min / _gcd(min, 60) * 60);
+    } else {
+      slotDur = NORMAL_SLOT_DURATION;
+      slotLabelInt = NORMAL_LABEL_INTERVAL;
+    }
     const view = (calendar && calendar.view) ? calendar.view.type : initialView;
     const date = preserveDate && calendar ? calendar.getDate() : undefined;
     if (calendar) calendar.destroy();
@@ -614,22 +635,18 @@
   // KEY: use VIEWPORT-relative space (window.innerHeight - calendar's top),
   // not calendar.getBoundingClientRect().height (which is the calendar's
   // currently-rendered height — already overflowing in non-compact mode).
-  function pickCompactSlotDuration() {
+  function pickCompactSlotDurationMin() {
     const calEl = document.getElementById('calendar');
-    if (!calEl) return '02:00:00';
+    if (!calEl) return 120;
     const calTop = calEl.getBoundingClientRect().top;
     const avail = Math.max(200, window.innerHeight - calTop - COMPACT_FC_CHROME_PX - 16);
     // Find the smallest clean duration such that numSlots * naturalHeight <= avail.
     for (const min of CLEAN_DURATIONS_MIN) {
       const numSlots = 1440 / min;
       const totalNeeded = numSlots * NATURAL_SLOT_PX;
-      if (totalNeeded <= avail) {
-        const hh = String(Math.floor(min / 60)).padStart(2, '0');
-        const mm = String(min % 60).padStart(2, '0');
-        return `${hh}:${mm}:00`;
-      }
+      if (totalNeeded <= avail) return min;
     }
-    return '04:00:00';  // ultra-tiny viewport — 4h slots, 6 of them
+    return 240;  // ultra-tiny viewport — 4h slots, 6 of them
   }
 
   function applyCompact(on) {
