@@ -585,9 +585,13 @@
   // expandRows only STRETCHES — it can't shrink below this — so we must
   // pick a slotDuration with `numSlots * NATURAL_SLOT_PX <= available`.
   const NATURAL_SLOT_PX        = 42;
-  // Clean slot durations to try, in MINUTES. We pick the SMALLEST one whose
-  // total natural height fits the available viewport.
-  const CLEAN_DURATIONS_MIN    = [15, 30, 60, 90, 120, 180, 240];
+  // Slot durations to try, in MINUTES — pick the SMALLEST whose total natural
+  // height fits the available viewport. ALL are whole-hour multiples on
+  // purpose: a non-hour size (e.g. 90) draws gridlines at :30 past odd hours
+  // that can't carry a whole-hour label, so tiles end up next to unlabeled
+  // half-hour lines and read as "~30 min off" even when positioned exactly.
+  // With only 60/120/180/240, every gridline IS a labeled whole hour.
+  const CLEAN_DURATIONS_MIN    = [60, 120, 180, 240];
 
   let calendar;  // will be assigned by mountCalendar()
 
