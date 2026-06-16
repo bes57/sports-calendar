@@ -71,6 +71,7 @@ All sources are public, no API keys required.
 | `GET /api/leagues` | League registry |
 | `POST /api/refresh` | Background refresh (all or `?league=mlb`) |
 | `POST /api/refresh/sync` | Refresh and wait for the result |
+| `GET /api/refresh/stream` | Refresh while streaming per-league progress as SSE (drives the calendar's progress bar; `?league=` optional) |
 | `GET /api/refresh/status` | When each league was last refreshed and whether it succeeded |
 | `GET /api/digest/preview?format=html\|text` | Today's digest, rendered |
 | `POST /api/digest/send` | Send today's digest now |

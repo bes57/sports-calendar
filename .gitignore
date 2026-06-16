@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 data/*.db
 data/*.db-journal
+data/*.db-wal
+data/*.db-shm
 .DS_Store
 .idea/
 .vscode/

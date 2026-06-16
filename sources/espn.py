@@ -14,7 +14,9 @@ Two parser variants are exported:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+import os
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
@@ -23,6 +25,34 @@ from timeutil import to_utc_iso
 
 BASE = "https://site.api.espn.com/apis/site/v2/sports"
 TIMEOUT = httpx.Timeout(15.0, connect=10.0)
+
+
+def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date) -> list[dict]:
+    """Fetch one ?dates=START-END scoreboard chunk. Each call uses its own
+    httpx.Client so chunks can be fetched in parallel (Client isn't safe to
+    share across threads). A 404 means "no games in this window" — not an
+    error — so we return [] for it."""
+    url = f"{BASE}/{sport}/{league}/scoreboard"
+    params = {
+        "dates": f"{c_start.strftime('%Y%m%d')}-{c_end.strftime('%Y%m%d')}",
+        "limit": "200",
+    }
+    with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
+        r = client.get(url, params=params)
+        if r.status_code == 404:
+            return []
+        r.raise_for_status()
+        return r.json().get("events", []) or []
+
+
+def _chunk_workers() -> int:
+    """Max concurrent date-chunk requests within a single league fetch."""
+    return max(1, int(os.getenv("ESPN_CHUNK_WORKERS", "6")))
+
+
+def _multi_workers() -> int:
+    """Max concurrent per-tour fetches inside fetch_espn_multi (cricket)."""
+    return max(1, int(os.getenv("ESPN_MULTI_WORKERS", "6")))
 
 
 def _fetch_range(sport: str, league: str, days_ahead: int) -> list[dict]:
@@ -39,36 +69,35 @@ def _fetch_range(sport: str, league: str, days_ahead: int) -> list[dict]:
     end = today + timedelta(days=max(1, days_ahead) + 1)
     raw_events: list[dict] = []
 
-    with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
-        if sport == "cricket":
-            # Pull current year (and next year if window crosses Jan 1)
-            years = {today.year, end.year}
+    if sport == "cricket":
+        # Cricket 404s on date ranges but accepts ?dates=YYYY for a full season.
+        # That's only 1-2 requests, so keep it serial on a single client.
+        with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
+            years = {today.year, end.year}  # next year too if window crosses Jan 1
             for y in years:
                 url = f"{BASE}/{sport}/{league}/scoreboard"
                 r = client.get(url, params={"dates": str(y), "limit": "500"})
                 r.raise_for_status()
                 data = r.json()
                 raw_events.extend(data.get("events", []) or [])
-        else:
-            cursor = today
-            while cursor < end:
-                chunk_end = min(cursor + timedelta(days=7), end)
-                url = f"{BASE}/{sport}/{league}/scoreboard"
-                params = {
-                    "dates": f"{cursor.strftime('%Y%m%d')}-{chunk_end.strftime('%Y%m%d')}",
-                    "limit": "200",
-                }
-                r = client.get(url, params=params)
-                # ESPN returns 404 for date ranges that fall entirely outside
-                # a league's season (e.g. NCAAM in June). That's not an error
-                # for us — it's "no games this window", so move on.
-                if r.status_code == 404:
-                    cursor = chunk_end + timedelta(days=1)
-                    continue
-                r.raise_for_status()
-                data = r.json()
-                raw_events.extend(data.get("events", []) or [])
-                cursor = chunk_end + timedelta(days=1)
+    else:
+        # Build the 7-day windows up front, then fetch them in parallel.
+        # The chunks are independent, so this turns a ~26-request serial
+        # walk (180-day league) into a handful of concurrent waves.
+        # ESPN 404s for windows outside a league's season — _fetch_chunk
+        # treats that as "no games", not an error.
+        chunks: list[tuple[date, date]] = []
+        cursor = today
+        while cursor < end:
+            chunk_end = min(cursor + timedelta(days=7), end)
+            chunks.append((cursor, chunk_end))
+            cursor = chunk_end + timedelta(days=1)
+        workers = min(len(chunks), _chunk_workers()) or 1
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for evs in ex.map(
+                lambda rg: _fetch_chunk(sport, league, rg[0], rg[1]), chunks
+            ):
+                raw_events.extend(evs)
 
     # Dedupe by ESPN event id (in case chunks overlap)
     seen = set()
@@ -327,21 +356,29 @@ def fetch_espn_multi(source_args: dict, days_ahead: int) -> list[Event]:
     leagues = source_args.get("leagues") or []
     if not leagues:
         return []
-    seen_ids: set[str] = set()
-    out: list[Event] = []
-    for lg in leagues:
+
+    def _sub_fetch(lg) -> list[Event]:
         sub_args = dict(source_args)
         sub_args.pop("leagues", None)
         sub_args["league"] = str(lg)
         try:
-            events = fetch_espn(sub_args, days_ahead)
+            return fetch_espn(sub_args, days_ahead)
         except Exception:
             # One bad/expired tour ID shouldn't kill the whole ODI fetch —
             # ESPN returns 404 once a series falls out of its data window.
-            continue
-        for e in events:
-            if e.source_id in seen_ids:
-                continue
-            seen_ids.add(e.source_id)
-            out.append(e)
+            return []
+
+    # ODI/T20I aggregate 20-25 separate tour IDs; fetching them serially is the
+    # single biggest contributor to refresh time. They're independent, so run
+    # them concurrently and merge.
+    workers = min(len(leagues), _multi_workers()) or 1
+    seen_ids: set[str] = set()
+    out: list[Event] = []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for events in ex.map(_sub_fetch, leagues):
+            for e in events:
+                if e.source_id in seen_ids:
+                    continue
+                seen_ids.add(e.source_id)
+                out.append(e)
     return out

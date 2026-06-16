@@ -95,8 +95,15 @@ def migrate_existing_timestamps_to_canonical() -> int:
 
 @contextmanager
 def connect():
-    conn = sqlite3.connect(DB_PATH)
+    # WAL + a generous busy_timeout let the parallel per-league refreshes
+    # (refresh_all runs leagues on a thread pool) write concurrently without
+    # tripping "database is locked": WAL allows readers alongside one writer,
+    # and busy_timeout makes a contending writer wait its turn instead of
+    # erroring out immediately.
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     try:
         yield conn
         conn.commit()

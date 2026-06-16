@@ -851,26 +851,67 @@
     });
   }
 
-  // Refresh button
+  // Refresh button — streams per-league progress over SSE and drives the bar.
   const refreshBtn = document.getElementById('refresh-btn');
   const refreshStatus = document.getElementById('refresh-status');
-  refreshBtn.addEventListener('click', async () => {
+  const refreshProgress = document.getElementById('refresh-progress');
+  const refreshBar = document.getElementById('refresh-bar');
+
+  function reloadCacheBusted() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('_', Date.now().toString());
+    window.location.replace(url.toString());
+  }
+
+  function refreshFailed(msg) {
+    refreshProgress.hidden = true;
+    refreshProgress.classList.remove('indeterminate');
+    refreshStatus.textContent = 'Error: ' + msg;
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = 'Refresh data';
+  }
+
+  refreshBtn.addEventListener('click', () => {
     refreshBtn.disabled = true;
     refreshBtn.textContent = 'Refreshing...';
     refreshStatus.textContent = '';
-    try {
-      const res = await fetch('/api/refresh/sync', { method: 'POST' });
-      const j = await res.json();
-      refreshStatus.textContent = `Fetched ${j.total} events — reloading...`;
-      // Cache-busting hard reload so any updated CSS/JS comes through too
-      const url = new URL(window.location.href);
-      url.searchParams.set('_', Date.now().toString());
-      window.location.replace(url.toString());
-    } catch (e) {
-      refreshStatus.textContent = 'Error: ' + e.message;
-      refreshBtn.disabled = false;
-      refreshBtn.textContent = 'Refresh data';
-    }
+    refreshBar.style.width = '';
+    refreshProgress.hidden = false;
+    // Animate immediately; flip to determinate once the first league lands.
+    refreshProgress.classList.add('indeterminate');
+
+    const es = new EventSource('/api/refresh/stream');
+    let finished = false;
+
+    es.onmessage = (ev) => {
+      let d;
+      try { d = JSON.parse(ev.data); } catch { return; }
+
+      if (d.type === 'progress') {
+        refreshProgress.classList.remove('indeterminate');
+        const pct = d.total ? Math.round((d.done / d.total) * 100) : 0;
+        refreshBar.style.width = pct + '%';
+        refreshStatus.textContent = `${d.done} / ${d.total} leagues…`;
+      } else if (d.type === 'done') {
+        finished = true;
+        es.close();
+        refreshProgress.classList.remove('indeterminate');
+        refreshBar.style.width = '100%';
+        refreshStatus.textContent = `Fetched ${d.total_events} events — reloading…`;
+        // Brief pause so the filled bar is visible, then cache-busting reload.
+        setTimeout(reloadCacheBusted, 400);
+      } else if (d.type === 'error') {
+        finished = true;
+        es.close();
+        refreshFailed(d.message || 'refresh failed');
+      }
+    };
+
+    es.onerror = () => {
+      if (finished) return;  // normal close after 'done'
+      es.close();
+      refreshFailed('connection lost');
+    };
   });
 
   // Popover

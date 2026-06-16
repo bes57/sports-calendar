@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
+from typing import Callable
 
 from db import init_db, upsert_events, record_refresh, purge_old, prune_league_to
 from leagues import LEAGUES, by_id
@@ -41,16 +43,47 @@ def refresh_league(league_id: str, days_ahead: int) -> tuple[int, str]:
         return 0, f"error: {exc}"
 
 
-def refresh_all(days_ahead: int | None = None) -> dict:
+def refresh_all(
+    days_ahead: int | None = None,
+    progress: Callable[[int, int, str, int], None] | None = None,
+) -> dict:
+    """Refresh every league. Leagues are fetched concurrently on a thread pool
+    (the work is network-bound), which cuts wall-clock time roughly to the
+    slowest single league instead of the sum of all of them.
+
+    `progress`, if given, is called as each league finishes with
+    (completed, total, league_id, event_count) — used to drive the SSE
+    progress bar on the calendar page.
+    """
     init_db()
     if days_ahead is None:
         days_ahead = int(os.getenv("FETCH_DAYS_AHEAD", "180"))
-    results = {}
+    results: dict[str, dict] = {}
     total = 0
-    for league in LEAGUES:
-        n, msg = refresh_league(league.id, days_ahead)
-        results[league.id] = {"count": n, "message": msg}
-        total += n
+    total_leagues = len(LEAGUES)
+    completed = 0
+    max_workers = max(1, int(os.getenv("REFRESH_MAX_WORKERS", "8")))
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {
+            ex.submit(refresh_league, league.id, days_ahead): league
+            for league in LEAGUES
+        }
+        for fut in as_completed(futures):
+            league = futures[fut]
+            try:
+                n, msg = fut.result()
+            except Exception as exc:  # refresh_league already traps most errors
+                n, msg = 0, f"error: {exc}"
+            results[league.id] = {"count": n, "message": msg}
+            total += n
+            completed += 1
+            if progress is not None:
+                try:
+                    progress(completed, total_leagues, league.id, n)
+                except Exception:
+                    pass  # never let a progress sink break the refresh
+
     # Clean up events that ended more than 2 days ago
     cutoff = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
     purged = purge_old(cutoff)

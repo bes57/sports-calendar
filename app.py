@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Query, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -231,6 +238,63 @@ async def api_refresh_sync(league: str | None = None):
         n, msg = refresh_league(league, int(os.getenv("FETCH_DAYS_AHEAD", "180")))
         return {"league": league, "count": n, "message": msg}
     return refresh_all()
+
+
+@app.get("/api/refresh/stream")
+async def api_refresh_stream(league: str | None = None):
+    """Run a refresh and stream progress as Server-Sent Events so the calendar
+    page can show a live progress bar. Emits one `progress` payload per league
+    as it completes, then a final `done` (or `error`) payload.
+
+    The refresh itself is blocking/threaded, so we run it in an executor and
+    bridge progress back onto the event loop through an asyncio.Queue.
+    """
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict] = asyncio.Queue()
+
+    def emit(payload: dict) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, payload)
+
+    def work() -> None:
+        try:
+            if league:
+                n, _msg = refresh_league(
+                    league, int(os.getenv("FETCH_DAYS_AHEAD", "180"))
+                )
+                emit({"type": "progress", "done": 1, "total": 1,
+                      "league": league, "count": n})
+                emit({"type": "done", "total_events": n})
+            else:
+                result = refresh_all(progress=lambda done, total, lg, n: emit(
+                    {"type": "progress", "done": done, "total": total,
+                     "league": lg, "count": n}
+                ))
+                emit({"type": "done", "total_events": result.get("total", 0)})
+        except Exception as exc:  # surface failures to the client
+            emit({"type": "error", "message": str(exc)[:300]})
+
+    loop.run_in_executor(None, work)
+
+    async def streamer():
+        # Tell the client how many leagues to expect so the bar starts
+        # determinate at 0% rather than guessing.
+        total = 1 if league else len(LEAGUES)
+        yield f"data: {json.dumps({'type': 'start', 'total': total})}\n\n"
+        while True:
+            payload = await queue.get()
+            yield f"data: {json.dumps(payload)}\n\n"
+            if payload.get("type") in ("done", "error"):
+                break
+
+    return StreamingResponse(
+        streamer(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # disable proxy buffering (nginx/Railway)
+        },
+    )
 
 
 @app.get("/api/refresh/status")
