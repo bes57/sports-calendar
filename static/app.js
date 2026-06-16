@@ -213,32 +213,60 @@
       clusters.forEach(members => {
         const count = Math.max.apply(null, members.map(it => it.level)) + 1;
         const desired = members.map(desiredWidth);
-        const maxDesired = Math.max.apply(null, desired);
-        const naturalPitch = maxDesired + gap;
-        const totalAtNatural = count * naturalPitch - gap;
-        let pitch;
-        if (totalAtNatural <= colWidth) {
-          pitch = naturalPitch;
-        } else {
-          // Cluster doesn't fit at natural widths. Shrink the pitch so the
-          // rightmost level ends at the column edge.
-          pitch = Math.max(1, (colWidth + gap) / count);
-        }
-        // Each tile gets min(its own desired, pitch). Don't scale all tiles by
-        // the widest tile's title — that's how a single long-title minority
-        // tile (e.g. "LEVIATÁN vs Global Esports") used to halve every MLB
-        // tile in the same cluster on busy Sundays. Cap at pitch so tiles
-        // never run into the next level.
-        const tileMax = Math.max(1, pitch - gap);
+
+        // Each level is a vertical lane. Tiles sharing a level never overlap in
+        // time, so the lane only needs to be as wide as its widest title. Sizing
+        // lanes independently (instead of one cluster-wide pitch) is what keeps
+        // the gaps between tiles even: with a single pitch = maxDesired+gap,
+        // every tile narrower than the widest title left a stray (maxDesired -
+        // desired) gap before the next lane, which is the "askew / inconsistent
+        // margin" look. It also means a long-title minority tile only widens its
+        // OWN lane — it never inflates or squishes the others.
+        const laneDesired = new Array(count).fill(0);
         members.forEach((item, idx) => {
-          const w = Math.max(1, Math.min(desired[idx], tileMax));
-          const offset = item.level * pitch;
-          item.h.style.left = offset + 'px';
+          laneDesired[item.level] = Math.max(laneDesired[item.level], desired[idx]);
+        });
+        const naturalTotal =
+          laneDesired.reduce((a, b) => a + b, 0) + (count - 1) * gap;
+
+        const laneWidth = new Array(count);
+        const laneLeft = new Array(count);
+        if (naturalTotal <= colWidth) {
+          // Tight pack: every lane is exactly as wide as it needs to be,
+          // separated by a uniform `gap`.
+          let x = 0;
+          for (let L = 0; L < count; L++) {
+            laneWidth[L] = laneDesired[L];
+            laneLeft[L] = x;
+            x += laneWidth[L] + gap;
+          }
+        } else {
+          // Doesn't fit even when tightly packed — fall back to equal-width
+          // lanes so the cluster fits the column and no single long title can
+          // hog width and squish the rest (busy MLB evenings).
+          const uniform = Math.max(1, (colWidth - (count - 1) * gap) / count);
+          for (let L = 0; L < count; L++) {
+            laneWidth[L] = uniform;
+            laneLeft[L] = L * (uniform + gap);
+          }
+        }
+
+        members.forEach(item => {
+          const L = item.level;
+          // Fill the lane (not just the title width) so every tile in a lane is
+          // the same width and the gap to the next lane is always exactly `gap`.
+          // Derive width from *rounded* lane boundaries — left = round(start),
+          // right = round(start + laneWidth) — so adjacent integer tile edges
+          // line up exactly and fractional lane widths can't leak a ±1px gap.
+          const left = Math.round(laneLeft[L]);
+          const right = Math.round(laneLeft[L] + laneWidth[L]);
+          const w = Math.max(1, right - left);
+          item.h.style.left = left + 'px';
           item.h.style.width = w + 'px';
           item.h.style.right = 'auto';
-          item.h.style.insetInlineStart = offset + 'px';
+          item.h.style.insetInlineStart = left + 'px';
           item.h.style.insetInlineEnd = 'auto';
-          item.h.style.zIndex = String(item.level + 1);
+          item.h.style.zIndex = String(L + 1);
         });
       });
     });
