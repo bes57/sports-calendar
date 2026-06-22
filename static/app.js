@@ -960,6 +960,11 @@
     const timeFmt = { hour: 'numeric', minute: '2-digit', ...tzOpts };
     let whenStr;
     if (event.allDay) {
+      // All-day events are floating dates (the API emits date-only YYYY-MM-DD).
+      // FullCalendar builds event.start as midnight-on-that-date IN the
+      // calendar's timezone, so format with savedTz (tzOpts) to read the date
+      // back correctly in every zone. Using UTC here would shift it a day for
+      // zones east of UTC (e.g. Tokyo midnight = 15:00Z the prior day).
       const endDay = end ? new Date(end.getTime() - 86400000) : null;
       const sameDay = endDay && endDay.toLocaleDateString('en-US', tzOpts) === start.toLocaleDateString('en-US', tzOpts);
       whenStr = endDay && !sameDay

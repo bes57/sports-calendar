@@ -164,12 +164,26 @@ async def api_events(
         full_title = r["title"]
         extra = r.get("extra") or {}
         short_title = extra.get("short_name") or full_title
+        all_day = bool(r.get("all_day"))
+        start_iso = _normalize_iso(r["start_utc"])
+        end_iso = _normalize_iso(r.get("end_utc"))
+        if all_day:
+            # All-day events (golf tournaments) must land on a fixed calendar
+            # date in EVERY timezone. Emit date-only (YYYY-MM-DD) so FullCalendar
+            # treats them as floating dates. A UTC instant like
+            # "2026-06-25T04:00:00+00:00" (midnight ET) would otherwise be
+            # converted into the viewer's zone and slide to the prior day for
+            # anyone west of Eastern (e.g. 9 PM Jun 24 in Pacific). ESPN encodes
+            # golf dates at midnight ET, so the UTC date prefix is the intended
+            # tournament date.
+            start_iso = start_iso[:10] if start_iso else start_iso
+            end_iso = end_iso[:10] if end_iso else end_iso
         out.append({
             "id": f"{r['league']}:{r['source_id']}",
             "title": short_title,
-            "start": _normalize_iso(r["start_utc"]),
-            "end": _normalize_iso(r.get("end_utc")),
-            "allDay": bool(r.get("all_day")),
+            "start": start_iso,
+            "end": end_iso,
+            "allDay": all_day,
             "backgroundColor": color,
             "borderColor": color,
             "extendedProps": {
