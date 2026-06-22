@@ -42,25 +42,27 @@ EVENTS: dict[str, list[dict]] = {
         },
     ],
     "nba_draft": [
+        # Dates/times confirmed from nba.com/draft/2026: Round 1 Tue Jun 23,
+        # Round 2 Wed Jun 24, both 8 PM ET at Barclays Center.
         {
             "source_id": "nba_draft_2026_r1",
             "title": "NBA Draft — Round 1",
             "subtitle": "2026 NBA Draft",
-            "start": "2026-06-24T23:00:00-04:00",   # 8 PM ET, typical
-            "end":   "2026-06-25T03:00:00-04:00",   # ~midnight ET
+            "start": "2026-06-23T20:00:00-04:00",   # 8 PM ET
+            "end":   "2026-06-24T00:00:00-04:00",   # ~midnight ET (5 min/pick)
             "venue": "Barclays Center, Brooklyn, NY",
-            "broadcast": "ESPN, ABC",
-            "url": "https://www.nba.com/draft",
+            "broadcast": "ABC, ESPN",
+            "url": "https://www.nba.com/draft/2026",
         },
         {
             "source_id": "nba_draft_2026_r2",
             "title": "NBA Draft — Round 2",
             "subtitle": "2026 NBA Draft",
-            "start": "2026-06-25T15:00:00-04:00",   # 3 PM ET, typical
-            "end":   "2026-06-25T19:00:00-04:00",   # 7 PM ET
+            "start": "2026-06-24T20:00:00-04:00",   # 8 PM ET
+            "end":   "2026-06-24T23:00:00-04:00",   # ~11 PM ET (4 min/pick)
             "venue": "Barclays Center, Brooklyn, NY",
             "broadcast": "ESPN",
-            "url": "https://www.nba.com/draft",
+            "url": "https://www.nba.com/draft/2026",
         },
     ],
 }
