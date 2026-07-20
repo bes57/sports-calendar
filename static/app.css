@@ -418,10 +418,20 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   from { background-position: 0 0; }
   to   { background-position: 18px 0; }
 }
-.fc-timegrid-event.fc-event-favorite,
-.fc-daygrid-event.fc-event-favorite {
-  position: relative;
-}
+/* NOT setting position:relative here on purpose — that was the actual bug.
+   .fc-timegrid-event is already position:absolute via FullCalendar's own
+   CSS (which is what FC relies on for its own top/height stretch-fill math
+   against the harness), and .fc-daygrid-event is already position:relative
+   — both are already valid non-static containing blocks for the ::before
+   below. Adding position:relative here didn't just add a positioning
+   context, it OVERWROTE .fc-timegrid-event's absolute with relative
+   (confirmed via getComputedStyle: favorited tiles measured position:
+   relative, non-favorited measured position: absolute) — under relative
+   positioning FC's own top/bottom-stretch inline styles no longer fill the
+   harness the same way, which is what was actually making favorited tiles
+   render smaller than their neighbors despite every earlier width
+   measurement (on the harness, not the affected element) coming back
+   identical. */
 .fc-timegrid-event.fc-event-favorite::before,
 .fc-daygrid-event.fc-event-favorite::before {
   content: '';
