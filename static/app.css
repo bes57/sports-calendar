@@ -402,34 +402,43 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
 .fc .fc-timegrid-now-indicator-arrow { display: none; }
 
-/* Favorite-team games get a shining star. A ::after badge overlaid on the
-   tile collided with team-abbreviation text on narrow Day/3-Day tiles, so
-   instead app.js injects the star INTO the title text itself (.fav-star-inline)
-   — it takes part in the tile's natural text flow, and _packTilesInColumns'
-   width measurement (which reads .fc-event-title.textContent) sizes the tile
-   around it automatically instead of the star sitting on top of the text. */
+/* Favorite-team games get a shining star. A vector icon (not a font glyph —
+   no platform emoji substitution, crisp at any size), rendered via CSS
+   `fill`, not `color`. In Day/3-Day/Month views it's a floating badge
+   appended as a sibling inside the harness (see eventDidMount in app.js) —
+   deliberately OUTSIDE the tile's own box/text-flow, so it can never be
+   squeezed, wrapped, or clipped by however narrow/short the tile-packer or
+   FullCalendar itself ends up making that particular tile. Week view hides
+   the title entirely (skinny pills) — those get a glow on the pill instead.
+   List view gets its own inline (non-floating) copy, styled further down. */
 @keyframes fav-star-shine {
-  0%, 100% { text-shadow: 0 0 2px #FDE047, 0 0 4px #FBBF24; opacity: 0.8; }
-  50%      { text-shadow: 0 0 4px #FDE047, 0 0 10px #FBBF24, 0 0 14px #FBBF24; opacity: 1; }
+  0%, 100% { filter: drop-shadow(0 0 1px #FDE047) drop-shadow(0 0 3px #FBBF24); opacity: 0.85; }
+  50%      { filter: drop-shadow(0 0 3px #FDE047) drop-shadow(0 0 7px #FBBF24) drop-shadow(0 0 9px #FBBF24); opacity: 1; }
 }
 .fav-star-inline {
-  /* Fixed px, not inherited — 3-Day view's title text is only 7px, which
-     made an inherited-size star nearly invisible. app.js's desiredWidth()
-     adds a matching pixel buffer so tiles still size around this correctly
-     even though _measureTextPx assumes one uniform (smaller) font-size. */
-  font-size: 15px;
-  line-height: 1;
-  vertical-align: -1px;
-  color: #FFFBEA;
-  text-shadow: 0 0 2px #FDE047, 0 0 5px #FBBF24;
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  fill: #FFD54A;
   animation: fav-star-shine 2.2s ease-in-out infinite;
 }
-.fc-list-event.fc-event-favorite .lst-fav-star {
-  color: #F59E0B;
-  text-shadow: 0 0 3px #FDE047, 0 0 6px #FBBF24;
-  margin-right: 4px;
-  animation: fav-star-shine 2.2s ease-in-out infinite;
+.fav-badge {
+  position: absolute;
+  top: -5px;
+  right: -4px;
+  z-index: 6;
+  pointer-events: none;
+  width: 15px;
+  height: 15px;
+}
+.lst-fav-star {
+  margin-right: 5px;
   display: inline-block;
+}
+.lst-fav-star .fav-star-inline {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
 }
 /* Week view hides .fc-event-title entirely (skinny pills, no room for text
    at all) — a title-embedded star wouldn't be visible there either way, so
