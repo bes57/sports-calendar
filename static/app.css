@@ -379,7 +379,7 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   letter-spacing: 0.04em;
 }
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
-.fc .fc-timegrid-now-indicator-arrow { border-top-color: #DC2626; border-bottom-color: #DC2626; }
+.fc .fc-timegrid-now-indicator-arrow { display: none; }
 
 /* --- Time-grid events: solid colored blocks --- */
 /* Cap tile width so a solo event doesn't balloon to the full column.
