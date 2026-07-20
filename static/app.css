@@ -402,17 +402,40 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
 .fc .fc-timegrid-now-indicator-arrow { display: none; }
 
-/* Favorite-team games get a gold ring instead of a badge, so the box model
-   (and therefore _measureTextPx / tile-packing math in app.js) is untouched —
-   box-shadow doesn't affect layout size. */
-.fc-timegrid-event.fc-event-favorite {
-  box-shadow: 0 0 0 2px #FBBF24, 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 1px rgba(255,255,255,0.08);
-}
+/* Favorite-team games get a small shining star badge in the corner instead
+   of an outline (a ring was too easy to miss at a glance). It's an ::after,
+   not real content, so _measureTextPx / tile-packing math in app.js (which
+   only measures .fc-event-title) is untouched. position:relative just gives
+   the badge something to anchor to — doesn't change the tile's own size. */
+.fc-timegrid-event.fc-event-favorite,
 .fc-daygrid-event.fc-event-favorite {
-  box-shadow: 0 0 0 2px #FBBF24 !important;
+  position: relative;
 }
-.fc-list-event.fc-event-favorite .fc-list-event-title { color: #B45309; }
-:root[data-theme="dark"] .fc-list-event.fc-event-favorite .fc-list-event-title { color: #FBBF24; }
+.fc-timegrid-event.fc-event-favorite::after,
+.fc-daygrid-event.fc-event-favorite::after {
+  content: '★';
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 12px;
+  line-height: 1;
+  color: #FFFBEA;
+  text-shadow: 0 0 2px #FDE047, 0 0 5px #FBBF24;
+  pointer-events: none;
+  z-index: 3;
+  animation: fav-star-shine 2.2s ease-in-out infinite;
+}
+@keyframes fav-star-shine {
+  0%, 100% { text-shadow: 0 0 2px #FDE047, 0 0 4px #FBBF24; opacity: 0.8; }
+  50%      { text-shadow: 0 0 4px #FDE047, 0 0 10px #FBBF24, 0 0 14px #FBBF24; opacity: 1; }
+}
+.fc-list-event.fc-event-favorite .lst-fav-star {
+  color: #F59E0B;
+  text-shadow: 0 0 3px #FDE047, 0 0 6px #FBBF24;
+  margin-right: 4px;
+  animation: fav-star-shine 2.2s ease-in-out infinite;
+  display: inline-block;
+}
 
 /* --- Time-grid events: solid colored blocks --- */
 /* Cap tile width so a solo event doesn't balloon to the full column.
@@ -765,24 +788,32 @@ table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--bor
 .accent-swatch:hover { transform: scale(1.1); }
 .accent-swatch.active { border-color: var(--text); }
 
-/* Favorite-league chips */
+/* "Currently favorited" summary chips */
 .fav-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .fav-chip {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px 6px 8px;
-  border: 1px solid var(--border-strong);
+  padding: 6px 8px 6px 10px;
+  border: 1px solid #FBBF24;
+  background: rgba(251,191,36,0.14);
   border-radius: 99px;
-  cursor: pointer;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 600;
   user-select: none;
-  transition: all 0.12s;
 }
-.fav-chip:hover { background: var(--hover); }
-.fav-chip input { margin: 0; accent-color: var(--accent); cursor: pointer; }
-.fav-chip:has(input:checked) { background: rgba(251,191,36,0.14); border-color: #FBBF24; }
+.fav-remove {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.fav-remove:hover { color: var(--text); background: rgba(0,0,0,0.08); }
 
 /* Favorite-team picker */
 .team-search-input {
@@ -858,7 +889,6 @@ table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--bor
 }
 .fav-filter-row:hover { background: var(--hover); }
 .fav-filter-row input { margin: 0; width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
-#favorites-section .league-sublist { padding-left: 0; }
 
 /* --- Month-view "+N more" popover --- */
 /* FC's default popover has no opaque background, so when it opens in a

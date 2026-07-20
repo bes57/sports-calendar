@@ -7,7 +7,6 @@
   const VIEW_KEY = 'sports-cal-view';
   const TZ_KEY = 'sports-cal-tz';
   const FORMAT_KEY = 'sports-cal-timefmt';
-  const FAV_LEAGUES_KEY = 'sports-cal-fav-leagues';
   const FAV_TEAMS_KEY = 'sports-cal-fav-teams';
 
   function readJSONPref(key, fallback) {
@@ -573,7 +572,8 @@
         const titleCell = info.el.querySelector('.fc-list-event-title');
         if (titleCell && !titleCell.dataset.enriched) {
           titleCell.dataset.enriched = '1';
-          const fullTitle = (isFav ? '★ ' : '') + (ep.fullTitle || info.event.title);
+          const fullTitle = ep.fullTitle || info.event.title;
+          const star = isFav ? '<span class="lst-fav-star">★</span>' : '';
           const pill = ep.leagueName
             ? `<span class="lst-pill" style="background:${bg};">${ep.leagueName}</span>`
             : '';
@@ -581,7 +581,7 @@
           if (ep.subtitle) subParts.push(ep.subtitle);
           if (ep.broadcast) subParts.push(ep.broadcast);
           const sub = subParts.length ? `<div class="lst-sub">${subParts.join(' · ')}</div>` : '';
-          titleCell.innerHTML = `${pill}<span class="lst-title">${fullTitle}</span>${sub}`;
+          titleCell.innerHTML = `${pill}${star}<span class="lst-title">${fullTitle}</span>${sub}`;
         }
         const dot = info.el.querySelector('.fc-list-event-dot');
         if (dot) { dot.style.borderColor = bg; }
@@ -863,25 +863,7 @@
   // Initial sync — saved state might have left groups partially checked.
   syncGroupCheckboxes();
 
-  // Pin favorite leagues (set on the Settings page) to a dedicated section
-  // at the sidebar top. Moves the actual <li> nodes (not clones) so the
-  // existing checkbox/listener keeps working unmodified — no state to sync.
-  (function pinFavoriteLeagues() {
-    const favLeagueIds = readJSONPref(FAV_LEAGUES_KEY, []);
-    if (!favLeagueIds.length) return;
-    const pinnedList = document.getElementById('pinned-leagues-list');
-    if (!pinnedList) return;
-    let moved = 0;
-    favLeagueIds.forEach(id => {
-      const check = document.querySelector(`.league-check[data-league="${id}"]`);
-      const li = check && check.closest('.league-sublist > li');
-      if (li) { pinnedList.appendChild(li); moved++; }
-    });
-    if (moved) pinnedList.hidden = false;
-  })();
-
-  // Favorites-only quick filter (set on the calendar; favorite teams are
-  // picked on the Settings page).
+  // Favorites-only quick filter (favorite teams are picked on the Settings page).
   const favOnlyFilter = document.getElementById('fav-only-filter');
   if (favOnlyFilter) {
     favOnlyFilter.addEventListener('change', () => calendar.refetchEvents());

@@ -37,20 +37,13 @@
   <section class="card">
     <h2>Favorites</h2>
     <p class="card-hint">
-      Favorite leagues pin to the top of the calendar sidebar. Favorite teams
-      get a gold ring on the calendar and can be isolated with the
-      "Favorites only" filter in the sidebar.
+      Favorite teams get a shining gold star on the calendar and can be
+      isolated with the "Favorites only" filter in the sidebar.
     </p>
     <div class="field-row-block">
-      <span class="field-label">Favorite leagues</span>
-      <div class="fav-chip-list" id="fav-leagues-list">
-        {% for lg in leagues %}
-        <label class="fav-chip">
-          <input type="checkbox" data-league="{{ lg.id }}" />
-          <span class="league-swatch" style="background: {{ lg.color }};"></span>
-          {{ lg.name }}
-        </label>
-        {% endfor %}
+      <span class="field-label">Currently favorited</span>
+      <div class="fav-chip-list" id="current-favorites-list">
+        <span class="muted small" id="current-favorites-empty">No favorite teams yet — pick some below.</span>
       </div>
     </div>
     <div class="field-row-block">
@@ -119,7 +112,6 @@ document.querySelectorAll('.refresh-one').forEach(btn => {
   const THEME_KEY = 'sports-cal-theme';
   const ACCENT_KEY = 'sports-cal-accent';
   const FORMAT_KEY = 'sports-cal-timefmt';
-  const FAV_LEAGUES_KEY = 'sports-cal-fav-leagues';
   const FAV_TEAMS_KEY = 'sports-cal-fav-teams';
   const ACCENT_PRESETS = {
     blue: '37, 99, 235', purple: '124, 58, 237', green: '22, 163, 74',
@@ -173,25 +165,71 @@ document.querySelectorAll('.refresh-one').forEach(btn => {
     });
   });
 
-  // --- Favorite leagues ---
+  // --- Favorite teams ---
   function readJSON(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
   }
-  const favLeagues = new Set(readJSON(FAV_LEAGUES_KEY, []));
-  document.querySelectorAll('#fav-leagues-list input[data-league]').forEach(input => {
-    input.checked = favLeagues.has(input.dataset.league);
-    input.addEventListener('change', () => {
-      if (input.checked) favLeagues.add(input.dataset.league);
-      else favLeagues.delete(input.dataset.league);
-      localStorage.setItem(FAV_LEAGUES_KEY, JSON.stringify(Array.from(favLeagues)));
-    });
-  });
-
-  // --- Favorite teams ---
   const favTeams = readJSON(FAV_TEAMS_KEY, {});
   function writeFavTeams() { localStorage.setItem(FAV_TEAMS_KEY, JSON.stringify(favTeams)); }
 
+  // Team names aren't known until /api/teams resolves; render with
+  // whatever we have (abbreviations at first) so the summary never sits
+  // empty on load, then re-render with full names once teams arrive.
+  const teamNameByKey = new Map();
+  function favoriteEntries() {
+    const entries = [];
+    Object.keys(favTeams).forEach(leagueId => {
+      (favTeams[leagueId] || []).forEach(abbr => {
+        const meta = LEAGUE_META[leagueId] || { name: leagueId, color: '#6B7280' };
+        const name = teamNameByKey.get(leagueId + ':' + abbr) || abbr;
+        entries.push({ leagueId, abbr, name, color: meta.color });
+      });
+    });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    return entries;
+  }
+  function removeFavorite(leagueId, abbr) {
+    const set = new Set(favTeams[leagueId] || []);
+    set.delete(abbr);
+    favTeams[leagueId] = Array.from(set);
+    writeFavTeams();
+    const input = document.querySelector(
+      `.team-group[data-league="${leagueId}"] .team-chip input[data-abbr="${abbr}"]`
+    );
+    if (input) { input.checked = false; input.dispatchEvent(new Event('change')); }
+    else { renderCurrentFavorites(); }
+  }
+  function renderCurrentFavorites() {
+    const listEl = document.getElementById('current-favorites-list');
+    const entries = favoriteEntries();
+    if (!entries.length) {
+      listEl.innerHTML = '<span class="muted small">No favorite teams yet — pick some below.</span>';
+      return;
+    }
+    listEl.innerHTML = '';
+    entries.forEach(e => {
+      const chip = document.createElement('span');
+      chip.className = 'fav-chip current-fav-chip';
+      const swatch = document.createElement('span');
+      swatch.className = 'league-swatch';
+      swatch.style.background = e.color;
+      chip.appendChild(swatch);
+      chip.appendChild(document.createTextNode(e.name));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'fav-remove';
+      remove.setAttribute('aria-label', `Remove ${e.name}`);
+      remove.innerHTML = '&times;';
+      remove.addEventListener('click', () => removeFavorite(e.leagueId, e.abbr));
+      chip.appendChild(remove);
+      listEl.appendChild(chip);
+    });
+  }
+  renderCurrentFavorites();
+
   fetch('/api/teams').then(r => r.json()).then(teams => {
+    teams.forEach(t => teamNameByKey.set(t.league + ':' + t.abbr, t.name));
+    renderCurrentFavorites();
     const wrap = document.getElementById('team-groups');
     wrap.innerHTML = '';
     if (!teams.length) {
@@ -226,6 +264,7 @@ document.querySelectorAll('.refresh-one').forEach(btn => {
         label.dataset.search = (t.name + ' ' + t.abbr).toLowerCase();
         const input = document.createElement('input');
         input.type = 'checkbox';
+        input.dataset.abbr = t.abbr;
         input.checked = favSet.has(t.abbr);
         input.addEventListener('change', () => {
           const set = new Set(favTeams[leagueId] || []);
@@ -233,6 +272,7 @@ document.querySelectorAll('.refresh-one').forEach(btn => {
           favTeams[leagueId] = Array.from(set);
           writeFavTeams();
           summary.querySelector('.fav-count').textContent = set.size ? `(${set.size} favorited)` : '';
+          renderCurrentFavorites();
         });
         label.appendChild(input);
         label.appendChild(document.createTextNode(t.name));
