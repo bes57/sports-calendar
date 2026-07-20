@@ -536,10 +536,22 @@
       // can re-locate the same event across day columns.
       info.el.dataset.calEventId = info.event.id;
 
-      // Gold ring (box-shadow only — doesn't affect tile-packing measurements)
-      // for events involving a favorite team, in every view.
+      // Favorite-team games get a shining star. Week view hides the title
+      // entirely (skinny pills), so it just gets a glow on the pill itself
+      // (fc-event-favorite class, styled in CSS) — nothing to overlap there.
+      // Every other grid view gets the star INSIDE the title's own text flow
+      // (not an absolutely-positioned badge) so _packTilesInColumns' text
+      // measurement sizes the tile around it instead of the star sitting on
+      // top of already-tight team abbreviations on narrow Day/3-Day tiles.
       const isFav = isFavoriteTeamEvent(ep);
       info.el.classList.toggle('fc-event-favorite', isFav);
+      if (isFav && view !== 'timeGridWeek') {
+        const titleEl = info.el.querySelector('.fc-event-title');
+        if (titleEl && !titleEl.dataset.favStarred) {
+          titleEl.dataset.favStarred = '1';
+          titleEl.innerHTML = `<span class="fav-star-inline">★</span> ${titleEl.textContent}`;
+        }
+      }
 
       // Tooltip with full title (for narrow time-grid tiles)
       const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.broadcast ? '\n' + ep.broadcast : ''}`;

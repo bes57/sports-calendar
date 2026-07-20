@@ -402,32 +402,20 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
 .fc .fc-timegrid-now-indicator-arrow { display: none; }
 
-/* Favorite-team games get a small shining star badge in the corner instead
-   of an outline (a ring was too easy to miss at a glance). It's an ::after,
-   not real content, so _measureTextPx / tile-packing math in app.js (which
-   only measures .fc-event-title) is untouched. position:relative just gives
-   the badge something to anchor to — doesn't change the tile's own size. */
-.fc-timegrid-event.fc-event-favorite,
-.fc-daygrid-event.fc-event-favorite {
-  position: relative;
-}
-.fc-timegrid-event.fc-event-favorite::after,
-.fc-daygrid-event.fc-event-favorite::after {
-  content: '★';
-  position: absolute;
-  top: 1px;
-  right: 3px;
-  font-size: 12px;
-  line-height: 1;
-  color: #FFFBEA;
-  text-shadow: 0 0 2px #FDE047, 0 0 5px #FBBF24;
-  pointer-events: none;
-  z-index: 3;
-  animation: fav-star-shine 2.2s ease-in-out infinite;
-}
+/* Favorite-team games get a shining star. A ::after badge overlaid on the
+   tile collided with team-abbreviation text on narrow Day/3-Day tiles, so
+   instead app.js injects the star INTO the title text itself (.fav-star-inline)
+   — it takes part in the tile's natural text flow, and _packTilesInColumns'
+   width measurement (which reads .fc-event-title.textContent) sizes the tile
+   around it automatically instead of the star sitting on top of the text. */
 @keyframes fav-star-shine {
   0%, 100% { text-shadow: 0 0 2px #FDE047, 0 0 4px #FBBF24; opacity: 0.8; }
   50%      { text-shadow: 0 0 4px #FDE047, 0 0 10px #FBBF24, 0 0 14px #FBBF24; opacity: 1; }
+}
+.fav-star-inline {
+  color: #FFFBEA;
+  text-shadow: 0 0 2px #FDE047, 0 0 5px #FBBF24;
+  animation: fav-star-shine 2.2s ease-in-out infinite;
 }
 .fc-list-event.fc-event-favorite .lst-fav-star {
   color: #F59E0B;
@@ -435,6 +423,12 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   margin-right: 4px;
   animation: fav-star-shine 2.2s ease-in-out infinite;
   display: inline-block;
+}
+/* Week view hides .fc-event-title entirely (skinny pills, no room for text
+   at all) — a title-embedded star wouldn't be visible there either way, so
+   those tiles get a glow on the pill itself instead. */
+body[data-view="timeGridWeek"] .fc-timegrid-event.fc-event-favorite {
+  box-shadow: 0 0 0 2px #FBBF24, 0 0 6px 1px rgba(251,191,36,0.65);
 }
 
 /* --- Time-grid events: solid colored blocks --- */
