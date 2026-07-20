@@ -872,6 +872,51 @@ table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--bor
   margin-top: 8px;
 }
 .team-search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.15); }
+
+/* Sidebar "find a team" search — jumps the calendar to a match's date. */
+.team-jump-wrap { position: relative; }
+.team-jump-results {
+  margin-top: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.team-jump-result {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font-family: inherit;
+  text-align: left;
+}
+.team-jump-result:last-child { border-bottom: none; }
+.team-jump-result:hover { background: var(--hover); }
+.team-jump-result-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+.team-jump-result-info { min-width: 0; flex: 1; }
+.team-jump-result-title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-jump-result-date { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
+.team-jump-empty { padding: 12px 10px; font-size: 12.5px; color: var(--muted); }
 .team-groups { margin-top: 10px; max-height: 360px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
 .team-group { border-bottom: 1px solid var(--border); }
 .team-group:last-child { border-bottom: none; }

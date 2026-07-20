@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from db import init_db, get_events, get_refresh_status, get_teams
+from timeutil import utc_now_iso
 from leagues import LEAGUES, by_id, grouped as grouped_leagues
 from refresh import refresh_all, refresh_league
 from digest import build_digest_text, build_digest_html, build_digest_sms, send_digest
@@ -238,6 +239,39 @@ async def api_teams():
     Derived from stored event data — leagues without team competitors
     (F1, Valorant, manual one-off events) just return nothing."""
     return get_teams()
+
+
+@app.get("/api/team-search")
+async def api_team_search(q: str = Query(..., min_length=1)):
+    """Upcoming events whose title or any competitor name/abbr contains q
+    (case-insensitive). Powers the sidebar "find a team" search — the
+    calendar jumps to a result's date on click, so only future/ongoing
+    events are worth returning."""
+    needle = q.strip().lower()
+    if not needle:
+        return []
+    rows = get_events(start_iso=utc_now_iso(), end_iso=None, leagues=None)
+    out = []
+    for r in rows:
+        extra = r.get("extra") or {}
+        competitors = extra.get("competitors") or []
+        haystack = " ".join(
+            [r["title"]] + [c.get("name", "") for c in competitors] + [c.get("abbr", "") for c in competitors]
+        ).lower()
+        if needle not in haystack:
+            continue
+        lg = by_id(r["league"])
+        out.append({
+            "id": f"{r['league']}:{r['source_id']}",
+            "league": r["league"],
+            "leagueName": lg.name if lg else r["league"],
+            "color": lg.color if lg else "#6B7280",
+            "title": r["title"],
+            "start": _normalize_iso(r["start_utc"]),
+            "allDay": bool(r.get("all_day")),
+        })
+    out.sort(key=lambda e: e["start"])
+    return out[:30]
 
 
 @app.post("/api/refresh")

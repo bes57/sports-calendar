@@ -799,6 +799,85 @@
     });
   }
 
+  // "Find a team" sidebar search — type a team, get a dropdown of its
+  // upcoming matches (any league, not just the currently-checked ones),
+  // click one to jump the calendar there without changing the active view.
+  const teamJumpInput = document.getElementById('team-jump-input');
+  const teamJumpResults = document.getElementById('team-jump-results');
+  function formatTeamJumpWhen(iso, allDay) {
+    const d = new Date(iso);
+    const tzOpts = savedTz !== 'local' ? { timeZone: savedTz } : {};
+    const dayFmt = { weekday: 'short', month: 'short', day: 'numeric', ...tzOpts };
+    if (allDay) return d.toLocaleDateString('en-US', dayFmt);
+    const timeFmt = { hour: 'numeric', minute: '2-digit', hour12: !use24h, ...tzOpts };
+    return `${d.toLocaleDateString('en-US', dayFmt)} · ${d.toLocaleTimeString('en-US', timeFmt)}`;
+  }
+  function hideTeamJumpResults() { teamJumpResults.hidden = true; }
+  function jumpToTeamResult(r) {
+    // A jump that lands on a day where the match's own league is unchecked
+    // would just show an empty range — make sure it's actually visible.
+    const check = document.querySelector(`.league-check[data-league="${r.league}"]`);
+    if (check && !check.checked) {
+      check.checked = true;
+      writeActive(currentActive());
+      syncGroupCheckboxes();
+    }
+    calendar.gotoDate(r.start);
+    calendar.refetchEvents();
+    hideTeamJumpResults();
+    teamJumpInput.value = '';
+    teamJumpInput.blur();
+  }
+  function renderTeamJumpResults(results) {
+    if (!results.length) {
+      teamJumpResults.innerHTML = '<div class="team-jump-empty">No upcoming matches found.</div>';
+      teamJumpResults.hidden = false;
+      return;
+    }
+    teamJumpResults.innerHTML = '';
+    results.forEach(r => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'team-jump-result';
+      btn.innerHTML = `
+        <span class="team-jump-result-dot" style="background:${r.color};"></span>
+        <span class="team-jump-result-info">
+          <span class="team-jump-result-title">${r.title}</span>
+          <span class="team-jump-result-date">${formatTeamJumpWhen(r.start, r.allDay)}</span>
+        </span>
+      `;
+      btn.addEventListener('click', () => jumpToTeamResult(r));
+      teamJumpResults.appendChild(btn);
+    });
+    teamJumpResults.hidden = false;
+  }
+  if (teamJumpInput) {
+    let teamJumpDebounce;
+    teamJumpInput.addEventListener('input', () => {
+      clearTimeout(teamJumpDebounce);
+      const q = teamJumpInput.value.trim();
+      if (!q) { hideTeamJumpResults(); return; }
+      teamJumpDebounce = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/team-search?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          // Drop stale responses if the user kept typing past this request.
+          if (teamJumpInput.value.trim() === q) renderTeamJumpResults(data);
+        } catch (e) { /* best-effort search — a failed lookup just shows nothing */ }
+      }, 220);
+    });
+    teamJumpInput.addEventListener('focus', () => {
+      if (teamJumpInput.value.trim() && teamJumpResults.innerHTML) teamJumpResults.hidden = false;
+    });
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#team-jump-section')) return;
+      hideTeamJumpResults();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !teamJumpResults.hidden) hideTeamJumpResults();
+    });
+  }
+
   // Reflect each group-checkbox's state from its child league-checkboxes:
   // all checked → checked, all unchecked → unchecked, mixed → indeterminate.
   function syncGroupCheckboxes() {
