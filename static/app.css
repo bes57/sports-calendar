@@ -411,16 +411,46 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
    days, FullCalendar's own render/unmount cycle) could squeeze, wrap, clip,
    or leak it. Pure box-shadow doesn't participate in any of that — it's
    just paint confined to the tile's own existing edge. */
+/* Slow pulse between a crisp gold ring and a softer, brighter glossy glow
+   (the extra blurred inset layer) — gives it some life without being
+   distracting. Separate keyframes per context because:
+   - an *animated* box-shadow always wins the cascade for that property
+     while running, so :hover needs its own variant with the elevated
+     shadow baked in, or the base variant's flatter shadow would flicker
+     back in on top of the hover lift the instant the animation ticks.
+   - month/list have no outer drop-shadow by default (flat tiles/rows) —
+     reusing the time-grid keyframes would add a floating-shadow look
+     those views don't otherwise have, so they get "-flat" variants that
+     only touch the inset layers. */
+@keyframes fav-border-glow {
+  0%, 100% { box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 2px #FBBF24, inset 0 0 4px 1px rgba(253,224,71,0.35); }
+  50%      { box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 2px #FDE047, inset 0 0 9px 2px rgba(253,224,71,0.7); }
+}
+@keyframes fav-border-glow-hover {
+  0%, 100% { box-shadow: 0 8px 24px rgba(15,23,42,0.28), inset 0 0 0 2px #FBBF24, inset 0 0 4px 1px rgba(253,224,71,0.35); }
+  50%      { box-shadow: 0 8px 24px rgba(15,23,42,0.28), inset 0 0 0 2px #FDE047, inset 0 0 9px 2px rgba(253,224,71,0.7); }
+}
+@keyframes fav-border-glow-flat {
+  0%, 100% { box-shadow: inset 0 0 0 2px #FBBF24, inset 0 0 4px 1px rgba(253,224,71,0.35); }
+  50%      { box-shadow: inset 0 0 0 2px #FDE047, inset 0 0 9px 2px rgba(253,224,71,0.7); }
+}
+@keyframes fav-border-glow-flat-list {
+  0%, 100% { box-shadow: inset 3px 0 0 0 #FBBF24, inset 8px 0 10px -6px rgba(253,224,71,0.5); }
+  50%      { box-shadow: inset 3px 0 0 0 #FDE047, inset 12px 0 16px -6px rgba(253,224,71,0.8); }
+}
 .fc-timegrid-event.fc-event-favorite {
-  box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 2px #FBBF24;
+  animation: fav-border-glow 3.2s ease-in-out infinite;
+}
+.fc-timegrid-event.fc-event-favorite:hover {
+  animation: fav-border-glow-hover 3.2s ease-in-out infinite;
 }
 .fc-daygrid-event.fc-event-favorite {
-  box-shadow: inset 0 0 0 2px #FBBF24 !important;
+  animation: fav-border-glow-flat 3.2s ease-in-out infinite;
 }
 /* Table rows can't take an inset ring the same way — a left accent stripe
    reads the same at a glance. */
 .fc-list-event.fc-event-favorite {
-  box-shadow: inset 3px 0 0 0 #FBBF24;
+  animation: fav-border-glow-flat-list 3.2s ease-in-out infinite;
 }
 
 /* --- Time-grid events: solid colored blocks --- */
