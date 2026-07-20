@@ -6,6 +6,22 @@
   const STORAGE_KEY = 'sports-cal-leagues';
   const VIEW_KEY = 'sports-cal-view';
   const TZ_KEY = 'sports-cal-tz';
+  const FORMAT_KEY = 'sports-cal-timefmt';
+  const FAV_LEAGUES_KEY = 'sports-cal-fav-leagues';
+  const FAV_TEAMS_KEY = 'sports-cal-fav-teams';
+
+  function readJSONPref(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
+  }
+  // Written only by the Settings page; read-only here.
+  const use24h = (localStorage.getItem(FORMAT_KEY) || '12h') === '24h';
+  const favTeams = readJSONPref(FAV_TEAMS_KEY, {});
+  function isFavoriteTeamEvent(ep) {
+    const favs = favTeams[ep.league];
+    if (!favs || !favs.length) return false;
+    const competitors = ep.competitors || [];
+    return competitors.some(c => favs.includes(c.abbr));
+  }
 
   // On a hard refresh / reload, wipe the saved view + league filter so the
   // app opens with its standard defaults: 3 Days, all leagues selected.
@@ -425,10 +441,14 @@
     scrollTime: _scrollAnchor(),
     slotDuration,
     slotLabelInterval,
-    slotLabelFormat: { hour: 'numeric', meridiem: 'short' },
+    slotLabelFormat: use24h
+      ? { hour: 'numeric', hour12: false }
+      : { hour: 'numeric', meridiem: 'short' },
     allDaySlot: true,
     allDayText: 'all-day',
-    eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
+    eventTimeFormat: use24h
+      ? { hour: 'numeric', minute: '2-digit', hour12: false }
+      : { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
     // Position on the time grid implies the time — hide the in-tile clock
     // so the team matchup gets full width.
     displayEventTime: false,
@@ -489,7 +509,11 @@
         url.searchParams.set('end', info.endStr);
         url.searchParams.set('leagues', active.join(','));
         const res = await fetch(url);
-        const data = await res.json();
+        let data = await res.json();
+        const favOnly = document.getElementById('fav-only-filter');
+        if (favOnly && favOnly.checked) {
+          data = data.filter(e => isFavoriteTeamEvent(e.extendedProps || {}));
+        }
         success(data);
       } catch (e) { failure(e); }
     },
@@ -512,6 +536,11 @@
       // Tag every rendered tile with its event id so alignCrossDayEvents()
       // can re-locate the same event across day columns.
       info.el.dataset.calEventId = info.event.id;
+
+      // Gold ring (box-shadow only — doesn't affect tile-packing measurements)
+      // for events involving a favorite team, in every view.
+      const isFav = isFavoriteTeamEvent(ep);
+      info.el.classList.toggle('fc-event-favorite', isFav);
 
       // Tooltip with full title (for narrow time-grid tiles)
       const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
@@ -544,7 +573,7 @@
         const titleCell = info.el.querySelector('.fc-list-event-title');
         if (titleCell && !titleCell.dataset.enriched) {
           titleCell.dataset.enriched = '1';
-          const fullTitle = ep.fullTitle || info.event.title;
+          const fullTitle = (isFav ? '★ ' : '') + (ep.fullTitle || info.event.title);
           const pill = ep.leagueName
             ? `<span class="lst-pill" style="background:${bg};">${ep.leagueName}</span>`
             : '';
@@ -834,6 +863,30 @@
   // Initial sync — saved state might have left groups partially checked.
   syncGroupCheckboxes();
 
+  // Pin favorite leagues (set on the Settings page) to a dedicated section
+  // at the sidebar top. Moves the actual <li> nodes (not clones) so the
+  // existing checkbox/listener keeps working unmodified — no state to sync.
+  (function pinFavoriteLeagues() {
+    const favLeagueIds = readJSONPref(FAV_LEAGUES_KEY, []);
+    if (!favLeagueIds.length) return;
+    const pinnedList = document.getElementById('pinned-leagues-list');
+    if (!pinnedList) return;
+    let moved = 0;
+    favLeagueIds.forEach(id => {
+      const check = document.querySelector(`.league-check[data-league="${id}"]`);
+      const li = check && check.closest('.league-sublist > li');
+      if (li) { pinnedList.appendChild(li); moved++; }
+    });
+    if (moved) pinnedList.hidden = false;
+  })();
+
+  // Favorites-only quick filter (set on the calendar; favorite teams are
+  // picked on the Settings page).
+  const favOnlyFilter = document.getElementById('fav-only-filter');
+  if (favOnlyFilter) {
+    favOnlyFilter.addEventListener('change', () => calendar.refetchEvents());
+  }
+
   // Mobile sidebar drawer toggle. Hamburger button is only rendered on the
   // calendar page; CSS hides it >720px so this no-ops on desktop.
   const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -932,7 +985,7 @@
     // never disagrees with the row the tile sits in.
     const tzOpts = savedTz !== 'local' ? { timeZone: savedTz } : {};
     const dayFmt = { weekday: 'short', month: 'short', day: 'numeric', ...tzOpts };
-    const timeFmt = { hour: 'numeric', minute: '2-digit', ...tzOpts };
+    const timeFmt = { hour: 'numeric', minute: '2-digit', hour12: !use24h, ...tzOpts };
     let whenStr;
     if (event.allDay) {
       // All-day events are floating dates (the API emits date-only YYYY-MM-DD).

@@ -11,10 +11,31 @@
   --hover: #F1F5F9;
   --primary: #0F172A;
   --accent: #2563EB;
+  --accent-rgb: 37, 99, 235;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.22);
   --radius: 12px;
+}
+
+/* Dark palette. Set by the bootstrap script in base.html (data-theme=
+   "light"|"dark", resolved from the "auto" preference before first paint).
+   --accent/--accent-rgb are NOT overridden here — an inline style on <html>
+   from the same bootstrap always wins over this block, in both themes. */
+:root[data-theme="dark"] {
+  --bg: #0B0E14;
+  --panel: #161A23;
+  --text: #E7EAF0;
+  --text-soft: #C3CAD6;
+  --muted: #8B95A7;
+  --muted-2: #5F6A7D;
+  --border: #262C3A;
+  --border-strong: #38404F;
+  --hover: #1E2330;
+  --primary: #3B4257;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
 }
 
 * { box-sizing: border-box; }
@@ -273,7 +294,7 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
   transition: border-color 0.1s;
 }
 .tz-select:hover { border-color: var(--muted); }
-.tz-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+.tz-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.15); }
 
 /* --- Calendar wrap --- */
 .calendar-wrap {
@@ -309,7 +330,7 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
   transition: all 0.12s;
 }
 .fc .fc-button:hover { background: var(--hover); color: var(--text); }
-.fc .fc-button:focus { box-shadow: 0 0 0 3px rgba(37,99,235,0.18) !important; }
+.fc .fc-button:focus { box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.18) !important; }
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
   background: var(--primary);
@@ -334,7 +355,7 @@ body.compact-grid .fc .fc-timegrid-slot-label-cushion { font-size: 10px !importa
   padding: 4px 4px;
 }
 .fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent); }
-.fc .fc-day-today { background: rgba(37,99,235,0.04) !important; }
+.fc .fc-day-today { background: rgba(var(--accent-rgb),0.08) !important; }
 
 /* Only the event bubbles fade during navigation, not the grid lines,
    day headers, or time-slot labels. On prev/next click the body class
@@ -380,6 +401,18 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 }
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
 .fc .fc-timegrid-now-indicator-arrow { display: none; }
+
+/* Favorite-team games get a gold ring instead of a badge, so the box model
+   (and therefore _measureTextPx / tile-packing math in app.js) is untouched —
+   box-shadow doesn't affect layout size. */
+.fc-timegrid-event.fc-event-favorite {
+  box-shadow: 0 0 0 2px #FBBF24, 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.fc-daygrid-event.fc-event-favorite {
+  box-shadow: 0 0 0 2px #FBBF24 !important;
+}
+.fc-list-event.fc-event-favorite .fc-list-event-title { color: #B45309; }
+:root[data-theme="dark"] .fc-list-event.fc-event-favorite .fc-list-event-title { color: #FBBF24; }
 
 /* --- Time-grid events: solid colored blocks --- */
 /* Cap tile width so a solo event doesn't balloon to the full column.
@@ -670,10 +703,162 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   box-shadow: var(--shadow-sm);
 }
 .card h2 { margin: 0 0 10px; font-size: 15px; }
+.card-hint { color: var(--muted); font-size: 12.5px; margin: 0 0 16px; line-height: 1.5; }
 table.kv { border-collapse: collapse; width: 100%; margin-top: 8px; }
 table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 .actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .leagues-status th { font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 700; letter-spacing: 0.05em; }
+/* Table is wider than a phone screen — scroll it horizontally within its own
+   box instead of letting it silently clip past the viewport edge (the page
+   itself doesn't scroll sideways; see the ≤720px html/body overflow-x rule). */
+.table-scroll { overflow-x: auto; }
+
+/* --- Settings: field rows (Appearance card) --- */
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.field-row:last-child { border-bottom: none; padding-bottom: 0; }
+.field-row-block { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.field-row-block:last-child { border-bottom: none; padding-bottom: 0; }
+.field-label { font-weight: 600; font-size: 13px; color: var(--text-soft); }
+
+/* Segmented control — theme / time-format pickers */
+.seg-control {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg-control button {
+  background: var(--panel);
+  color: var(--text-soft);
+  border: none;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.seg-control button + button { border-left: 1px solid var(--border-strong); }
+.seg-control button:hover { background: var(--hover); color: var(--text); }
+.seg-control button.active { background: var(--primary); color: white; }
+
+/* Accent color swatches */
+.accent-swatches { display: flex; gap: 10px; }
+.accent-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 99px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+  transition: transform 0.1s;
+}
+.accent-swatch:hover { transform: scale(1.1); }
+.accent-swatch.active { border-color: var(--text); }
+
+/* Favorite-league chips */
+.fav-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.fav-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  user-select: none;
+  transition: all 0.12s;
+}
+.fav-chip:hover { background: var(--hover); }
+.fav-chip input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+.fav-chip:has(input:checked) { background: rgba(251,191,36,0.14); border-color: #FBBF24; }
+
+/* Favorite-team picker */
+.team-search-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 8px;
+}
+.team-search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.15); }
+.team-groups { margin-top: 10px; max-height: 360px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
+.team-group { border-bottom: 1px solid var(--border); }
+.team-group:last-child { border-bottom: none; }
+.team-group[hidden] { display: none; }
+.team-group-summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+}
+.team-group-summary .fav-count { color: var(--accent); font-weight: 700; }
+/* Plain data-attribute toggle (same pattern as .league-group[data-open] in
+   the sidebar) instead of <details>/<summary> — Chromium's content-visibility
+   handling for collapsed <details> content was inflating document.body's
+   scrollHeight by the full expanded height of every group (visible as a huge
+   blank gap on the Settings page) even though it painted correctly closed. */
+.team-group[data-open="false"] > .team-chip-list { display: none; }
+.team-chip-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 14px 14px; }
+.team-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  user-select: none;
+}
+.team-chip[hidden] { display: none; }
+.team-chip:hover { background: var(--hover); }
+.team-chip input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+.team-chip:has(input:checked) { background: rgba(251,191,36,0.14); border-color: #FBBF24; }
+
+/* --- Calendar sidebar: favorites-only quick filter --- */
+.fav-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.fav-filter-row:hover { background: var(--hover); }
+.fav-filter-row input { margin: 0; width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+#favorites-section .league-sublist { padding-left: 0; }
 
 /* --- Month-view "+N more" popover --- */
 /* FC's default popover has no opaque background, so when it opens in a
@@ -705,7 +890,7 @@ table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--bor
 }
 
 /* --- Day cells (month view) --- */
-.fc-daygrid-day.fc-day-today { background: rgba(37,99,235,0.04) !important; }
+.fc-daygrid-day.fc-day-today { background: rgba(var(--accent-rgb),0.08) !important; }
 .fc .fc-daygrid-day-number { color: var(--text); font-weight: 600; padding: 6px 8px; }
 .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number { color: var(--accent); }
 
@@ -759,6 +944,10 @@ body.sidebar-open .sidebar-toggle span:nth-child(3) { transform: translateY(-6px
   .layout { grid-template-columns: 1fr; }
   .calendar-wrap { padding: 10px 8px; }
   #calendar { padding: 10px 10px; }
+
+  .settings-wrap { padding: 16px 14px; }
+  .card { padding: 16px; }
+  .field-row { justify-content: flex-start; }
 
   /* Drawer: sidebar slides in from the left over the calendar. */
   .sidebar {

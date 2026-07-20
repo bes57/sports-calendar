@@ -187,6 +187,36 @@ def get_events(
     return out
 
 
+def get_teams() -> list[dict]:
+    """Distinct (league, abbr, name) triples derived from every stored event's
+    `extra.competitors`. There's no separate team-roster table — team lists
+    come straight from whatever ESPN has already put in front of us, so this
+    stays correct without a second data source to maintain. Leagues whose
+    fetcher doesn't populate competitors (F1, Valorant, manual events) just
+    contribute nothing here."""
+    seen: set[tuple[str, str]] = set()
+    out: list[dict] = []
+    with connect() as conn:
+        rows = conn.execute("SELECT league, extra FROM events").fetchall()
+    for r in rows:
+        try:
+            extra = json.loads(r["extra"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        for c in extra.get("competitors") or []:
+            abbr = c.get("abbr")
+            name = c.get("name")
+            if not abbr or not name:
+                continue
+            key = (r["league"], abbr)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"league": r["league"], "abbr": abbr, "name": name})
+    out.sort(key=lambda t: (t["league"], t["name"]))
+    return out
+
+
 def record_refresh(league: str, ok: bool, message: str = "") -> None:
     now = datetime.now(timezone.utc).isoformat()
     with connect() as conn:

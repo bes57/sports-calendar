@@ -8,6 +8,42 @@
   <link rel="preconnect" href="https://rsms.me/" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <link rel="stylesheet" href="/static/app.css?v={{ asset_version }}" />
+  <script>
+    // Applies theme + accent BEFORE first paint (no flash-of-wrong-theme).
+    // Shared across every page since both calendar.html and settings.html
+    // extend this template — Settings only WRITES these keys, this bootstrap
+    // is what actually applies them everywhere.
+    (function () {
+      var ACCENT_PRESETS = {
+        blue:   '37, 99, 235',
+        purple: '124, 58, 237',
+        green:  '22, 163, 74',
+        rose:   '219, 39, 119',
+        orange: '234, 88, 12',
+        teal:   '13, 148, 136',
+      };
+      var root = document.documentElement;
+
+      function applyTheme(pref) {
+        var effective = pref === 'auto'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : pref;
+        root.setAttribute('data-theme', effective);
+      }
+      var themePref = localStorage.getItem('sports-cal-theme') || 'auto';
+      applyTheme(themePref);
+      if (themePref === 'auto' && window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+          applyTheme('auto');
+        });
+      }
+
+      var accentKey = localStorage.getItem('sports-cal-accent');
+      var rgb = ACCENT_PRESETS[accentKey] || ACCENT_PRESETS.blue;
+      root.style.setProperty('--accent', 'rgb(' + rgb.replace(/ /g, '') + ')');
+      root.style.setProperty('--accent-rgb', rgb);
+    })();
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>

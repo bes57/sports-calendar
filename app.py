@@ -19,7 +19,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from db import init_db, get_events, get_refresh_status
+from db import init_db, get_events, get_refresh_status, get_teams
 from leagues import LEAGUES, by_id, grouped as grouped_leagues
 from refresh import refresh_all, refresh_league
 from digest import build_digest_text, build_digest_html, build_digest_sms, send_digest
@@ -196,6 +196,7 @@ async def api_events(
                 "url": r["url"],
                 "status": r["status"],
                 "note": _league_note(r["league"]),
+                "competitors": extra.get("competitors") or [],
             },
         })
     return JSONResponse(out)
@@ -229,6 +230,14 @@ async def api_leagues():
         {"id": l.id, "name": l.name, "full_name": l.full_name, "color": l.color}
         for l in LEAGUES
     ]
+
+
+@app.get("/api/teams")
+async def api_teams():
+    """Distinct teams per league, for the Settings favorite-team picker.
+    Derived from stored event data — leagues without team competitors
+    (F1, Valorant, manual one-off events) just return nothing."""
+    return get_teams()
 
 
 @app.post("/api/refresh")

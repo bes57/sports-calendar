@@ -5,7 +5,66 @@
   <h1>Settings</h1>
 
   <section class="card">
+    <h2>Appearance</h2>
+    <div class="field-row">
+      <span class="field-label">Theme</span>
+      <div class="seg-control" id="theme-control">
+        <button type="button" data-value="light">Light</button>
+        <button type="button" data-value="dark">Dark</button>
+        <button type="button" data-value="auto">Auto</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <span class="field-label">Accent color</span>
+      <div class="accent-swatches" id="accent-control">
+        <button type="button" class="accent-swatch" data-value="blue"   style="background:#2563EB" aria-label="Blue"></button>
+        <button type="button" class="accent-swatch" data-value="purple" style="background:#7C3AED" aria-label="Purple"></button>
+        <button type="button" class="accent-swatch" data-value="green"  style="background:#16A34A" aria-label="Green"></button>
+        <button type="button" class="accent-swatch" data-value="rose"   style="background:#DB2777" aria-label="Rose"></button>
+        <button type="button" class="accent-swatch" data-value="orange" style="background:#EA580C" aria-label="Orange"></button>
+        <button type="button" class="accent-swatch" data-value="teal"   style="background:#0D9488" aria-label="Teal"></button>
+      </div>
+    </div>
+    <div class="field-row">
+      <span class="field-label">Time format</span>
+      <div class="seg-control" id="format-control">
+        <button type="button" data-value="12h">12h</button>
+        <button type="button" data-value="24h">24h</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Favorites</h2>
+    <p class="card-hint">
+      Favorite leagues pin to the top of the calendar sidebar. Favorite teams
+      get a gold ring on the calendar and can be isolated with the
+      "Favorites only" filter in the sidebar.
+    </p>
+    <div class="field-row-block">
+      <span class="field-label">Favorite leagues</span>
+      <div class="fav-chip-list" id="fav-leagues-list">
+        {% for lg in leagues %}
+        <label class="fav-chip">
+          <input type="checkbox" data-league="{{ lg.id }}" />
+          <span class="league-swatch" style="background: {{ lg.color }};"></span>
+          {{ lg.name }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="field-row-block">
+      <span class="field-label">Favorite teams</span>
+      <input type="text" id="team-search" class="team-search-input" placeholder="Search teams…" />
+      <div class="team-groups" id="team-groups">
+        <div class="muted small" id="team-groups-loading" style="padding:14px;">Loading teams…</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Leagues</h2>
+    <div class="table-scroll">
     <table class="kv leagues-status">
       <thead>
         <tr><th>League</th><th>Last refresh</th><th>Status</th><th></th></tr>
@@ -33,6 +92,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </section>
 </div>
 
@@ -48,5 +108,160 @@ document.querySelectorAll('.refresh-one').forEach(btn => {
     location.reload();
   });
 });
+</script>
+
+<script>
+(function () {
+  const LEAGUE_META = {
+    {% for lg in leagues %}"{{ lg.id }}": {"name": "{{ lg.name }}", "color": "{{ lg.color }}"}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+  const THEME_KEY = 'sports-cal-theme';
+  const ACCENT_KEY = 'sports-cal-accent';
+  const FORMAT_KEY = 'sports-cal-timefmt';
+  const FAV_LEAGUES_KEY = 'sports-cal-fav-leagues';
+  const FAV_TEAMS_KEY = 'sports-cal-fav-teams';
+  const ACCENT_PRESETS = {
+    blue: '37, 99, 235', purple: '124, 58, 237', green: '22, 163, 74',
+    rose: '219, 39, 119', orange: '234, 88, 12', teal: '13, 148, 136',
+  };
+
+  // --- Theme ---
+  const themeCtl = document.getElementById('theme-control');
+  function setActiveSeg(ctl, value) {
+    ctl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === value));
+  }
+  function applyTheme(pref) {
+    const effective = pref === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : pref;
+    document.documentElement.setAttribute('data-theme', effective);
+  }
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'auto';
+  setActiveSeg(themeCtl, savedTheme);
+  themeCtl.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      localStorage.setItem(THEME_KEY, btn.dataset.value);
+      setActiveSeg(themeCtl, btn.dataset.value);
+      applyTheme(btn.dataset.value);
+    });
+  });
+
+  // --- Accent ---
+  const accentCtl = document.getElementById('accent-control');
+  const savedAccent = localStorage.getItem(ACCENT_KEY) || 'blue';
+  setActiveSeg(accentCtl, savedAccent);
+  accentCtl.querySelectorAll('button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === savedAccent);
+    btn.addEventListener('click', () => {
+      localStorage.setItem(ACCENT_KEY, btn.dataset.value);
+      accentCtl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      const rgb = ACCENT_PRESETS[btn.dataset.value] || ACCENT_PRESETS.blue;
+      document.documentElement.style.setProperty('--accent', 'rgb(' + rgb.replace(/ /g, '') + ')');
+      document.documentElement.style.setProperty('--accent-rgb', rgb);
+    });
+  });
+
+  // --- Time format ---
+  const formatCtl = document.getElementById('format-control');
+  const savedFormat = localStorage.getItem(FORMAT_KEY) || '12h';
+  setActiveSeg(formatCtl, savedFormat);
+  formatCtl.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      localStorage.setItem(FORMAT_KEY, btn.dataset.value);
+      setActiveSeg(formatCtl, btn.dataset.value);
+    });
+  });
+
+  // --- Favorite leagues ---
+  function readJSON(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
+  }
+  const favLeagues = new Set(readJSON(FAV_LEAGUES_KEY, []));
+  document.querySelectorAll('#fav-leagues-list input[data-league]').forEach(input => {
+    input.checked = favLeagues.has(input.dataset.league);
+    input.addEventListener('change', () => {
+      if (input.checked) favLeagues.add(input.dataset.league);
+      else favLeagues.delete(input.dataset.league);
+      localStorage.setItem(FAV_LEAGUES_KEY, JSON.stringify(Array.from(favLeagues)));
+    });
+  });
+
+  // --- Favorite teams ---
+  const favTeams = readJSON(FAV_TEAMS_KEY, {});
+  function writeFavTeams() { localStorage.setItem(FAV_TEAMS_KEY, JSON.stringify(favTeams)); }
+
+  fetch('/api/teams').then(r => r.json()).then(teams => {
+    const wrap = document.getElementById('team-groups');
+    wrap.innerHTML = '';
+    if (!teams.length) {
+      wrap.innerHTML = '<div class="muted small" style="padding:14px;">No team data yet — refresh some leagues first.</div>';
+      return;
+    }
+    const byLeague = new Map();
+    teams.forEach(t => {
+      if (!byLeague.has(t.league)) byLeague.set(t.league, []);
+      byLeague.get(t.league).push(t);
+    });
+    byLeague.forEach((list, leagueId) => {
+      const meta = LEAGUE_META[leagueId] || { name: leagueId, color: '#6B7280' };
+      const favSet = new Set(favTeams[leagueId] || []);
+      const group = document.createElement('div');
+      group.className = 'team-group';
+      group.dataset.league = leagueId;
+      group.dataset.open = 'false';
+      const summary = document.createElement('button');
+      summary.type = 'button';
+      summary.className = 'team-group-summary';
+      summary.innerHTML = `${meta.name} <span class="fav-count">${favSet.size ? '(' + favSet.size + ' favorited)' : ''}</span>`;
+      summary.addEventListener('click', () => {
+        group.dataset.open = group.dataset.open === 'true' ? 'false' : 'true';
+      });
+      group.appendChild(summary);
+      const chipList = document.createElement('div');
+      chipList.className = 'team-chip-list';
+      list.forEach(t => {
+        const label = document.createElement('label');
+        label.className = 'team-chip';
+        label.dataset.search = (t.name + ' ' + t.abbr).toLowerCase();
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = favSet.has(t.abbr);
+        input.addEventListener('change', () => {
+          const set = new Set(favTeams[leagueId] || []);
+          if (input.checked) set.add(t.abbr); else set.delete(t.abbr);
+          favTeams[leagueId] = Array.from(set);
+          writeFavTeams();
+          summary.querySelector('.fav-count').textContent = set.size ? `(${set.size} favorited)` : '';
+        });
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(t.name));
+        chipList.appendChild(label);
+      });
+      group.appendChild(chipList);
+      wrap.appendChild(group);
+    });
+
+    // Search filters chips within every group; groups with zero matches
+    // hide entirely, groups with a match auto-expand while searching.
+    const searchInput = document.getElementById('team-search');
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      document.querySelectorAll('.team-group').forEach(group => {
+        let anyVisible = false;
+        group.querySelectorAll('.team-chip').forEach(chip => {
+          const match = !q || chip.dataset.search.includes(q);
+          chip.hidden = !match;
+          if (match) anyVisible = true;
+        });
+        group.hidden = !anyVisible;
+        if (q && anyVisible) group.dataset.open = 'true';
+      });
+    });
+  }).catch(() => {
+    document.getElementById('team-groups').innerHTML =
+      '<div class="muted small" style="padding:14px;">Could not load teams.</div>';
+  });
+})();
 </script>
 {% endblock %}

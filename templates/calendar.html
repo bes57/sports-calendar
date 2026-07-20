@@ -14,6 +14,13 @@
 {% block content %}
 <div class="layout">
   <aside class="sidebar">
+    <div class="sidebar-section" id="favorites-section">
+      <label class="fav-filter-row">
+        <input type="checkbox" id="fav-only-filter" />
+        <span>★ Favorite teams only</span>
+      </label>
+      <ul class="league-sublist" id="pinned-leagues-list" hidden></ul>
+    </div>
     <div class="sidebar-section">
       <div class="sidebar-title">Leagues</div>
       <div class="sidebar-actions">
