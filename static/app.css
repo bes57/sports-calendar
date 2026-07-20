@@ -413,6 +413,13 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   50%      { text-shadow: 0 0 4px #FDE047, 0 0 10px #FBBF24, 0 0 14px #FBBF24; opacity: 1; }
 }
 .fav-star-inline {
+  /* Fixed px, not inherited — 3-Day view's title text is only 7px, which
+     made an inherited-size star nearly invisible. app.js's desiredWidth()
+     adds a matching pixel buffer so tiles still size around this correctly
+     even though _measureTextPx assumes one uniform (smaller) font-size. */
+  font-size: 15px;
+  line-height: 1;
+  vertical-align: -1px;
   color: #FFFBEA;
   text-shadow: 0 0 2px #FDE047, 0 0 5px #FBBF24;
   animation: fav-star-shine 2.2s ease-in-out infinite;

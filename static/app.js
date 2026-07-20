@@ -206,13 +206,21 @@
       // Outer-tile padding (≈8 px both sides) + slack for sub-pixel font
       // metrics and the rounded right edge of the tile.
       const TITLE_PADDING = 18;
+      // .fav-star-inline renders at a fixed 15px regardless of the title's
+      // own (often much smaller, e.g. 7px in 3-Day) font-size, so
+      // _measureTextPx — which measures the whole string at one uniform
+      // font-size — underestimates a favorited tile's true width. This
+      // fixed buffer covers that gap without needing per-character font
+      // metrics in the measurement itself.
+      const FAV_STAR_BONUS = 8;
       function desiredWidth(item) {
         if (!sizeToTitle) return maxTilePx;
         const titleEl = item.h.querySelector('.fc-event-title');
         const text = titleEl && titleEl.textContent || '';
         if (!titleEl || !text) return maxTilePx;
         const textW = _measureTextPx(text, titleEl);
-        return Math.max(maxTilePx, textW + TITLE_PADDING);
+        const favBonus = item.h.querySelector('.fc-event-favorite') ? FAV_STAR_BONUS : 0;
+        return Math.max(maxTilePx, textW + TITLE_PADDING + favBonus);
       }
 
       clusters.forEach(members => {
