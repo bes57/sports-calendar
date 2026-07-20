@@ -6,29 +6,19 @@
   const STORAGE_KEY = 'sports-cal-leagues';
   const VIEW_KEY = 'sports-cal-view';
   const TZ_KEY = 'sports-cal-tz';
-  const COMPACT_KEY = 'sports-cal-compact';
 
-  // On a hard refresh / reload, wipe the saved view + league filter + compact
-  // toggle so the app opens with its standard defaults: 3 Days, all leagues
-  // selected, Fit 24h on. Timezone persists since that's a stable user pref.
+  // On a hard refresh / reload, wipe the saved view + league filter so the
+  // app opens with its standard defaults: 3 Days, all leagues selected.
+  // Timezone persists since that's a stable user pref.
   const navType = (performance.getEntriesByType('navigation')[0] || {}).type;
   if (navType === 'reload') {
     localStorage.removeItem(VIEW_KEY);
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(COMPACT_KEY);
   }
 
-  // Compact-grid toggle — squashes slots so 24h fit without scrolling.
-  // Wiring the change handler happens AFTER the calendar is instantiated
-  // (further down) so we can call calendar.updateSize() to make FC re-measure
-  // slot heights and re-position events against them.
-  // Default to compact (fit 24h on screen) on first visit. Once the user
-  // toggles it off (saves '0'), respect that choice on subsequent loads.
-  const compactStored = localStorage.getItem(COMPACT_KEY);
-  const compactSaved = compactStored === null ? true : compactStored === '1';
-  if (compactSaved) document.body.classList.add('compact-grid');
-  const compactToggle = document.getElementById('compact-toggle');
-  if (compactToggle) compactToggle.checked = compactSaved;
+  // Compact grid — squashes slots so a full 24h always fits without
+  // scrolling. Always on; there is no toggle for it.
+  document.body.classList.add('compact-grid');
 
   function readActive() {
     try {
@@ -606,8 +596,6 @@
   // destroy the calendar instance and rebuild it with the desired
   // slotDuration baked into the constructor.
   // ────────────────────────────────────────────────────────────────
-  const NORMAL_SLOT_DURATION   = '00:30:00';
-  const NORMAL_LABEL_INTERVAL  = '01:00:00';
   const COMPACT_FC_CHROME_PX   = 130;   // toolbar + day header + allDay strip
   // FC's natural minimum slot height (matches our app.css .fc-timegrid-slot).
   // expandRows only STRETCHES — it can't shrink below this — so we must
@@ -631,22 +619,16 @@
   }
   const _gcd = (a, b) => (b ? _gcd(b, a % b) : a);
 
-  function mountCalendar(compactMode, preserveDate) {
-    let slotDur, slotLabelInt;
-    if (compactMode) {
-      const min = pickCompactSlotDurationMin();
-      slotDur = fmtDuration(min);
-      // The label interval must be a whole number of hours AND a multiple of
-      // the slot size. Otherwise a 90-min slot labels at 1:30, 4:30, 7:30…,
-      // and slotLabelFormat (hour-only) FLOORS those to "1pm/4pm/7pm" — so the
-      // line claiming "4pm" actually sits at 4:30 and every tile looks ~30 min
-      // off. lcm(min, 60) is the smallest interval that lands exactly on the
-      // hour while still aligning to slot boundaries.
-      slotLabelInt = fmtDuration(min / _gcd(min, 60) * 60);
-    } else {
-      slotDur = NORMAL_SLOT_DURATION;
-      slotLabelInt = NORMAL_LABEL_INTERVAL;
-    }
+  function mountCalendar(preserveDate) {
+    const min = pickCompactSlotDurationMin();
+    const slotDur = fmtDuration(min);
+    // The label interval must be a whole number of hours AND a multiple of
+    // the slot size. Otherwise a 90-min slot labels at 1:30, 4:30, 7:30…,
+    // and slotLabelFormat (hour-only) FLOORS those to "1pm/4pm/7pm" — so the
+    // line claiming "4pm" actually sits at 4:30 and every tile looks ~30 min
+    // off. lcm(min, 60) is the smallest interval that lands exactly on the
+    // hour while still aligning to slot boundaries.
+    const slotLabelInt = fmtDuration(min / _gcd(min, 60) * 60);
     const view = (calendar && calendar.view) ? calendar.view.type : initialView;
     const date = preserveDate && calendar ? calendar.getDate() : undefined;
     if (calendar) calendar.destroy();
@@ -681,10 +663,8 @@
     return 240;  // ultra-tiny viewport — 4h slots, 6 of them
   }
 
-  function applyCompact(on) {
-    document.body.classList.toggle('compact-grid', on);
-    localStorage.setItem(COMPACT_KEY, on ? '1' : '0');
-    mountCalendar(on, /*preserveDate=*/true);
+  function remountForViewport() {
+    mountCalendar(/*preserveDate=*/true);
   }
 
   // Capture-phase click listener fires BEFORE FullCalendar's own button
@@ -767,20 +747,15 @@
     }, 50);
   });
 
-  // Initial mount — uses compactSaved to pick the right slotDuration up-front
-  mountCalendar(compactSaved, false);
-
-  if (compactToggle) {
-    compactToggle.addEventListener('change', () => applyCompact(compactToggle.checked));
-  }
+  // Initial mount — picks the right slotDuration for the viewport up-front.
+  mountCalendar(false);
 
   // Re-pick slot duration on window resize so a bigger window doesn't waste space.
   let _resizeTimer;
   window.addEventListener('resize', () => {
     scheduleUniformizeWeek();
-    if (!document.body.classList.contains('compact-grid')) return;
     clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(() => applyCompact(true), 200);
+    _resizeTimer = setTimeout(remountForViewport, 200);
   });
 
   // Timezone change handler
