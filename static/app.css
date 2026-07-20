@@ -428,11 +428,11 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 2px;
+  padding: 4px;
   background-image: linear-gradient(45deg,
-    #FDE047 25%, #FFFFFF 25%, #FFFFFF 50%,
-    #FDE047 50%, #FDE047 75%, #FFFFFF 75%, #FFFFFF 100%);
-  background-size: 18px 18px;
+    #FBBF24 25%, #FFFFFF 25%, #FFFFFF 50%,
+    #FBBF24 50%, #FBBF24 75%, #FFFFFF 75%, #FFFFFF 100%);
+  background-size: 22px 22px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -452,11 +452,11 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 4px;
+  width: 7px;
   background-image: linear-gradient(45deg,
-    #FDE047 25%, #FFFFFF 25%, #FFFFFF 50%,
-    #FDE047 50%, #FDE047 75%, #FFFFFF 75%, #FFFFFF 100%);
-  background-size: 9px 9px;
+    #FBBF24 25%, #FFFFFF 25%, #FFFFFF 50%,
+    #FBBF24 50%, #FBBF24 75%, #FFFFFF 75%, #FFFFFF 100%);
+  background-size: 11px 11px;
   animation: fav-border-spin 2.6s linear infinite;
   pointer-events: none;
 }
