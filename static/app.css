@@ -428,10 +428,19 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 4px;
+  /* Percentage padding on an absolutely-positioned element resolves against
+     the CONTAINING BLOCK'S WIDTH (a CSS quirk — applies to top/bottom too,
+     not just left/right). A flat 4px ring was eating ~40% of a busy day's
+     ~20px-wide tiles (4px * 2 sides), which is what actually read as
+     "shrunk" even though the tile's own box never changed size (verified
+     via getBoundingClientRect — identical to non-favorited neighbors).
+     min() keeps it a full 4px on any tile wide enough to afford that
+     (Month cells, wide Day view) but scales it down before it can dominate
+     a narrow one. */
+  padding: min(4px, 10%);
   background-image: linear-gradient(45deg,
-    #FBBF24 25%, #FFFFFF 25%, #FFFFFF 50%,
-    #FBBF24 50%, #FBBF24 75%, #FFFFFF 75%, #FFFFFF 100%);
+    #FBBF24 0%, #FBBF24 35%, #FFFFFF 35%, #FFFFFF 50%,
+    #FBBF24 50%, #FBBF24 85%, #FFFFFF 85%, #FFFFFF 100%);
   background-size: 22px 22px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -442,7 +451,8 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 }
 /* Table rows can't take a ring the same way — an animated stripe on the
    left edge reads the same at a glance. No mask needed: it's meant to be a
-   solid filled bar, not framing an empty middle. */
+   solid filled bar, not framing an empty middle. Rows are plenty wide, so
+   no min()/percentage scaling needed here. */
 .fc-list-event.fc-event-favorite {
   position: relative;
 }
@@ -454,8 +464,8 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   bottom: 0;
   width: 7px;
   background-image: linear-gradient(45deg,
-    #FBBF24 25%, #FFFFFF 25%, #FFFFFF 50%,
-    #FBBF24 50%, #FBBF24 75%, #FFFFFF 75%, #FFFFFF 100%);
+    #FBBF24 0%, #FBBF24 35%, #FFFFFF 35%, #FFFFFF 50%,
+    #FBBF24 50%, #FBBF24 85%, #FFFFFF 85%, #FFFFFF 100%);
   background-size: 11px 11px;
   animation: fav-border-spin 2.6s linear infinite;
   pointer-events: none;
