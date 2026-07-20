@@ -30,7 +30,7 @@
           : pref;
         root.setAttribute('data-theme', effective);
       }
-      var themePref = localStorage.getItem('sports-cal-theme') || 'auto';
+      var themePref = localStorage.getItem('sports-cal-theme') || 'light';
       applyTheme(themePref);
       if (themePref === 'auto' && window.matchMedia) {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {

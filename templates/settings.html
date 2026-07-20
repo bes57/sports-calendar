@@ -129,7 +129,7 @@ document.querySelectorAll('.refresh-one').forEach(btn => {
       : pref;
     document.documentElement.setAttribute('data-theme', effective);
   }
-  const savedTheme = localStorage.getItem(THEME_KEY) || 'auto';
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
   setActiveSeg(themeCtl, savedTheme);
   themeCtl.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
