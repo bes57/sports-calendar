@@ -402,49 +402,25 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
 .fc .fc-timegrid-now-indicator-arrow { display: none; }
 
-/* Favorite-team games get a shining star. A vector icon (not a font glyph —
-   no platform emoji substitution, crisp at any size), rendered via CSS
-   `fill`, not `color`. In Day/3-Day/Month views it's a floating badge
-   appended as a sibling inside the harness (see eventDidMount in app.js) —
-   deliberately OUTSIDE the tile's own box/text-flow, so it can never be
-   squeezed, wrapped, or clipped by however narrow/short the tile-packer or
-   FullCalendar itself ends up making that particular tile. Week view hides
-   the title entirely (skinny pills) — those get a glow on the pill instead.
-   List view gets its own inline (non-floating) copy, styled further down. */
-@keyframes fav-star-shine {
-  0%, 100% { filter: drop-shadow(0 0 1px #FDE047) drop-shadow(0 0 3px #FBBF24); opacity: 0.85; }
-  50%      { filter: drop-shadow(0 0 3px #FDE047) drop-shadow(0 0 7px #FBBF24) drop-shadow(0 0 9px #FBBF24); opacity: 1; }
+/* Favorite-team games get a gold INSET border, replacing the tile's default
+   subtle 1px white inner rim rather than adding an outer ring around it.
+   Every DOM-based indicator tried before this (overlaid badge, star glued
+   into the title text, floating badge outside the tile) ran into some
+   version of the same problem: something else in the tile's own layout
+   (title text measurement, tile-packing's equal-width fallback on busy
+   days, FullCalendar's own render/unmount cycle) could squeeze, wrap, clip,
+   or leak it. Pure box-shadow doesn't participate in any of that — it's
+   just paint confined to the tile's own existing edge. */
+.fc-timegrid-event.fc-event-favorite {
+  box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 2px #FBBF24;
 }
-.fav-star-inline {
-  display: inline-block;
-  width: 13px;
-  height: 13px;
-  fill: #FFD54A;
-  animation: fav-star-shine 2.2s ease-in-out infinite;
+.fc-daygrid-event.fc-event-favorite {
+  box-shadow: inset 0 0 0 2px #FBBF24 !important;
 }
-.fav-badge {
-  position: absolute;
-  top: -5px;
-  right: -4px;
-  z-index: 6;
-  pointer-events: none;
-  width: 15px;
-  height: 15px;
-}
-.lst-fav-star {
-  margin-right: 5px;
-  display: inline-block;
-}
-.lst-fav-star .fav-star-inline {
-  width: 14px;
-  height: 14px;
-  vertical-align: -2px;
-}
-/* Week view hides .fc-event-title entirely (skinny pills, no room for text
-   at all) — a title-embedded star wouldn't be visible there either way, so
-   those tiles get a glow on the pill itself instead. */
-body[data-view="timeGridWeek"] .fc-timegrid-event.fc-event-favorite {
-  box-shadow: 0 0 0 2px #FBBF24, 0 0 6px 1px rgba(251,191,36,0.65);
+/* Table rows can't take an inset ring the same way — a left accent stripe
+   reads the same at a glance. */
+.fc-list-event.fc-event-favorite {
+  box-shadow: inset 3px 0 0 0 #FBBF24;
 }
 
 /* --- Time-grid events: solid colored blocks --- */

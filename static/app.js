@@ -21,14 +21,6 @@
     const competitors = ep.competitors || [];
     return competitors.some(c => favs.includes(c.abbr));
   }
-  // A clean vector star (not a font glyph — renders identically everywhere,
-  // no platform emoji substitution) for favorite-team games. Inline-level
-  // SVG, so it behaves like a single unbreakable "character" wherever it's
-  // glued into text.
-  const FAV_STAR_SVG = '<svg class="fav-star-inline" viewBox="0 0 24 24" aria-hidden="true">'
-    + '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'
-    + '</svg>';
-
   // On a hard refresh / reload, wipe the saved view + league filter so the
   // app opens with its standard defaults: 3 Days, all leagues selected.
   // Timezone persists since that's a stable user pref.
@@ -543,34 +535,14 @@
       // can re-locate the same event across day columns.
       info.el.dataset.calEventId = info.event.id;
 
-      // Favorite-team games get a shining star. Putting it INSIDE the title
-      // text (an earlier attempt) meant its size was at the mercy of
-      // whatever width the tile-packer gave that tile — and on a busy day,
-      // _packTilesInColumns falls back to dividing the column into equal-
-      // width lanes when a tight pack won't fit, ignoring each tile's own
-      // desired width entirely. No per-tile text trick survives that. So
-      // instead the star lives OUTSIDE the tile's own box/flow altogether:
-      // a small badge appended as a sibling inside the harness, absolutely
-      // positioned to poke out past the tile's corner. It never touches the
-      // tile's own width/height layout, so it can't be squeezed, wrapped,
-      // or clipped by the tile's overflow:hidden regardless of how narrow
-      // or short the tile ends up. Week view hides the title entirely
-      // (skinny pills) — those just get a glow on the pill itself instead.
-      // List/Agenda views get their own separate inline star further below
-      // — an ALLOWLIST here (not "everything except Week") keeps them from
-      // also falling into this badge path, since they have no harness to
-      // anchor one to and would just leak a stray floating star.
+      // Favorite-team games get a gold inset border, replacing the tile's
+      // default subtle inner rim (see .fc-event-favorite in app.css) —
+      // pure box-shadow, so unlike every DOM/text-based badge tried before
+      // it, it can never overlap title text, get clipped by overflow:hidden
+      // on a short/narrow tile, or interfere with _measureTextPx/tile-
+      // packing measurement in any way. It just isn't part of that system.
       const isFav = isFavoriteTeamEvent(ep);
       info.el.classList.toggle('fc-event-favorite', isFav);
-      const BADGE_VIEWS = ['timeGridDay', 'threeDay', 'dayGridMonth'];
-      if (isFav && BADGE_VIEWS.includes(view)) {
-        const harness = info.el.closest('[class*="-harness"]');
-        if (harness && !harness.querySelector('.fav-badge')) {
-          harness.insertAdjacentHTML('beforeend', FAV_STAR_SVG.replace(
-            'class="fav-star-inline"', 'class="fav-star-inline fav-badge"'
-          ));
-        }
-      }
 
       // Tooltip with full title (for narrow time-grid tiles)
       const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
@@ -604,7 +576,6 @@
         if (titleCell && !titleCell.dataset.enriched) {
           titleCell.dataset.enriched = '1';
           const fullTitle = ep.fullTitle || info.event.title;
-          const star = isFav ? `<span class="lst-fav-star">${FAV_STAR_SVG}</span>` : '';
           const pill = ep.leagueName
             ? `<span class="lst-pill" style="background:${bg};">${ep.leagueName}</span>`
             : '';
@@ -612,22 +583,11 @@
           if (ep.subtitle) subParts.push(ep.subtitle);
           if (ep.broadcast) subParts.push(ep.broadcast);
           const sub = subParts.length ? `<div class="lst-sub">${subParts.join(' · ')}</div>` : '';
-          titleCell.innerHTML = `${pill}${star}<span class="lst-title">${fullTitle}</span>${sub}`;
+          titleCell.innerHTML = `${pill}<span class="lst-title">${fullTitle}</span>${sub}`;
         }
         const dot = info.el.querySelector('.fc-list-event-dot');
         if (dot) { dot.style.borderColor = bg; }
       }
-    },
-    // .fav-badge is appended as a plain DOM sibling outside FC's own
-    // rendering (see eventDidMount above), so FC's normal re-render/diffing
-    // has no idea it needs to come along when the event unmounts (view
-    // change, refetch, league filter, etc.) — without this it's left behind
-    // as an orphaned, stale-positioned floating star. eventWillUnmount is
-    // FC's dedicated per-event teardown hook, so clean it up here.
-    eventWillUnmount: (info) => {
-      const harness = info.el.closest('[class*="-harness"]');
-      const badge = harness && harness.querySelector('.fav-badge');
-      if (badge) badge.remove();
     },
     datesSet: (info) => {
       localStorage.setItem(VIEW_KEY, info.view.type);
@@ -703,11 +663,6 @@
     const view = (calendar && calendar.view) ? calendar.view.type : initialView;
     const date = preserveDate && calendar ? calendar.getDate() : undefined;
     if (calendar) calendar.destroy();
-    // Hard safety net: whether or not FC's own destroy() fires
-    // eventWillUnmount for every currently-mounted event on the way down,
-    // nothing manually-injected like .fav-badge should ever survive a full
-    // instance teardown (this runs on every viewport-resize remount too).
-    document.querySelectorAll('.fav-badge').forEach(b => b.remove());
     calendar = new FullCalendar.Calendar(el, buildCalendarOptions({
       slotDuration: slotDur,
       slotLabelInterval: slotLabelInt,
