@@ -114,6 +114,16 @@ def fetch_valorant(source_args: dict, days_ahead: int) -> list[Event]:
                         "stage": m.get("stage", ""),
                         "team_a": m["team_a"],
                         "team_b": m["team_b"],
+                        # Same shape ESPN's fetcher uses (name/abbr/home_away) —
+                        # db.get_teams() and the calendar's favorite-team
+                        # matching both key off "competitors" specifically, so
+                        # without this VCT teams can't be favorited or
+                        # highlighted at all. VLR has no short code for teams,
+                        # so abbr just reuses the full scraped name.
+                        "competitors": [
+                            {"name": m["team_a"], "abbr": m["team_a"], "home_away": "home"},
+                            {"name": m["team_b"], "abbr": m["team_b"], "home_away": "away"},
+                        ],
                     },
                 ))
     return out
