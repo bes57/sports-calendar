@@ -62,10 +62,13 @@ def _fetch_range(sport: str, league: str, days_ahead: int) -> list[dict]:
     Cricket returns 404 on date ranges but accepts ?dates=YYYY for a full
     season, which we then filter locally.
 
-    We start the window 1 day before UTC-today so a user in a western TZ
-    doesn't lose "today's" games once UTC rolls past midnight.
+    We start the window 2 days before UTC-today — matching refresh.py's
+    purge_old grace period — so a just-finished game isn't pruned by
+    prune_league_to a full day before purge_old would naturally drop it.
+    A 1-day pre-roll also cut it too close for users east of UTC, where
+    an evening-ET game can already read as "today" or "tomorrow" locally.
     """
-    today = (datetime.now(timezone.utc) - timedelta(days=1)).date()
+    today = (datetime.now(timezone.utc) - timedelta(days=2)).date()
     end = today + timedelta(days=max(1, days_ahead) + 1)
     raw_events: list[dict] = []
 
