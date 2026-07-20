@@ -402,55 +402,63 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
 .fc .fc-timegrid-now-indicator-line { border-color: #DC2626; border-width: 2px; }
 .fc .fc-timegrid-now-indicator-arrow { display: none; }
 
-/* Favorite-team games get a gold INSET border, replacing the tile's default
-   subtle 1px white inner rim rather than adding an outer ring around it.
-   Every DOM-based indicator tried before this (overlaid badge, star glued
-   into the title text, floating badge outside the tile) ran into some
-   version of the same problem: something else in the tile's own layout
-   (title text measurement, tile-packing's equal-width fallback on busy
-   days, FullCalendar's own render/unmount cycle) could squeeze, wrap, clip,
-   or leak it. Pure box-shadow doesn't participate in any of that — it's
-   just paint confined to the tile's own existing edge. */
-/* Slow pulse between a crisp gold ring and a softer, brighter glossy glow
-   (the extra blurred inset layer) — gives it some life without being
-   distracting. Separate keyframes per context because:
-   - an *animated* box-shadow always wins the cascade for that property
-     while running, so :hover needs its own variant with the elevated
-     shadow baked in, or the base variant's flatter shadow would flicker
-     back in on top of the hover lift the instant the animation ticks.
-   - month/list have no outer drop-shadow by default (flat tiles/rows) —
-     reusing the time-grid keyframes would add a floating-shadow look
-     those views don't otherwise have, so they get "-flat" variants that
-     only touch the inset layers. */
-@keyframes fav-border-glow {
-  0%, 100% { box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 2px #FBBF24, inset 0 0 4px 1px rgba(253,224,71,0.35); }
-  50%      { box-shadow: 0 1px 3px rgba(15,23,42,0.20), inset 0 0 0 2px #FDE047, inset 0 0 9px 2px rgba(253,224,71,0.7); }
+/* Favorite-team games get a gold/white barbershop-pole border — diagonal
+   stripes slowly marching around the tile's edge. It's a ::before, not
+   box-shadow, which sidesteps the earlier hover bug entirely (box-shadow
+   :hover was silently REPLACING the ring's box-shadow instead of adding to
+   it) since this now paints on a completely separate layer that :hover
+   never touches. Standard "animated gradient border" technique: a diagonal
+   striped background sized to one repeat unit, with mask-composite cutting
+   out the content-box so only a `padding`-wide ring at the edge shows it,
+   then animating background-position by exactly one repeat for a seamless
+   loop (same mechanism as Bootstrap's .progress-bar-striped). Pure CSS, so
+   like the box-shadow version it adds no DOM and can't leak/overlap/clip —
+   it's confined to inset:0 of the tile's own existing box, never beyond it. */
+@keyframes fav-border-spin {
+  from { background-position: 0 0; }
+  to   { background-position: 18px 0; }
 }
-@keyframes fav-border-glow-hover {
-  0%, 100% { box-shadow: 0 8px 24px rgba(15,23,42,0.28), inset 0 0 0 2px #FBBF24, inset 0 0 4px 1px rgba(253,224,71,0.35); }
-  50%      { box-shadow: 0 8px 24px rgba(15,23,42,0.28), inset 0 0 0 2px #FDE047, inset 0 0 9px 2px rgba(253,224,71,0.7); }
-}
-@keyframes fav-border-glow-flat {
-  0%, 100% { box-shadow: inset 0 0 0 2px #FBBF24, inset 0 0 4px 1px rgba(253,224,71,0.35); }
-  50%      { box-shadow: inset 0 0 0 2px #FDE047, inset 0 0 9px 2px rgba(253,224,71,0.7); }
-}
-@keyframes fav-border-glow-flat-list {
-  0%, 100% { box-shadow: inset 3px 0 0 0 #FBBF24, inset 8px 0 10px -6px rgba(253,224,71,0.5); }
-  50%      { box-shadow: inset 3px 0 0 0 #FDE047, inset 12px 0 16px -6px rgba(253,224,71,0.8); }
-}
-.fc-timegrid-event.fc-event-favorite {
-  animation: fav-border-glow 3.2s ease-in-out infinite;
-}
-.fc-timegrid-event.fc-event-favorite:hover {
-  animation: fav-border-glow-hover 3.2s ease-in-out infinite;
-}
+.fc-timegrid-event.fc-event-favorite,
 .fc-daygrid-event.fc-event-favorite {
-  animation: fav-border-glow-flat 3.2s ease-in-out infinite;
+  position: relative;
 }
-/* Table rows can't take an inset ring the same way — a left accent stripe
-   reads the same at a glance. */
+.fc-timegrid-event.fc-event-favorite::before,
+.fc-daygrid-event.fc-event-favorite::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background-image: linear-gradient(45deg,
+    #FDE047 25%, #FFFFFF 25%, #FFFFFF 50%,
+    #FDE047 50%, #FDE047 75%, #FFFFFF 75%, #FFFFFF 100%);
+  background-size: 18px 18px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: fav-border-spin 2.6s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Table rows can't take a ring the same way — an animated stripe on the
+   left edge reads the same at a glance. No mask needed: it's meant to be a
+   solid filled bar, not framing an empty middle. */
 .fc-list-event.fc-event-favorite {
-  animation: fav-border-glow-flat-list 3.2s ease-in-out infinite;
+  position: relative;
+}
+.fc-list-event.fc-event-favorite::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-image: linear-gradient(45deg,
+    #FDE047 25%, #FFFFFF 25%, #FFFFFF 50%,
+    #FDE047 50%, #FDE047 75%, #FFFFFF 75%, #FFFFFF 100%);
+  background-size: 9px 9px;
+  animation: fav-border-spin 2.6s linear infinite;
+  pointer-events: none;
 }
 
 /* --- Time-grid events: solid colored blocks --- */
