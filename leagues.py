@@ -94,6 +94,13 @@ LEAGUES: list[League] = [
         group="Basketball",
     ),
     League(
+        id="nba_summerleague", name="NBA Summer League", full_name="NBA Summer League (Las Vegas)",
+        color="#F43F5E",  # rose — distinct from NBA red, WNBA orange, Draft purple
+        source="espn", source_args={"sport": "basketball", "league": "nba-summer-las-vegas"},
+        duration_hours=2.0,
+        group="Basketball",
+    ),
+    League(
         id="nhl", name="NHL", full_name="National Hockey League",
         color="#0EA5E9",  # sky blue
         source="espn", source_args={"sport": "hockey", "league": "nhl"},

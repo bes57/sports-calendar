@@ -37,10 +37,10 @@ ALL_EVENTS = [
         "start": "2026-07-15",
         "end":   "2026-09-06",
         "regions": {
-            "Americas": "",
-            "EMEA":     "",
-            "Pacific":  "",
-            "CN":       "",
+            "Americas": "https://www.vlr.gg/event/stats/2977/vct-2026-americas-stage-2",
+            "EMEA":     "https://www.vlr.gg/event/stats/2976/vct-2026-emea-stage-2",
+            "Pacific":  "https://www.vlr.gg/event/stats/2776/vct-2026-pacific-stage-2",
+            "CN":       "https://www.vlr.gg/event/stats/2978/vct-2026-china-stage-2",
         },
     },
     {
