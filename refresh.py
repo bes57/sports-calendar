@@ -12,7 +12,7 @@ from leagues import LEAGUES, by_id
 from sources import get_fetcher
 
 
-def refresh_league(league_id: str, days_ahead: int) -> tuple[int, str]:
+def refresh_league(league_id: str, days_ahead: int, days_behind: int = 90) -> tuple[int, str]:
     league = by_id(league_id)
     if not league:
         return 0, f"unknown league {league_id}"
@@ -23,6 +23,9 @@ def refresh_league(league_id: str, days_ahead: int) -> tuple[int, str]:
         args["league_id_in_db"] = league.id
         args["duration_hours"] = league.duration_hours
         args["multi_day"] = league.multi_day
+        # How far into the past ESPN-backed fetchers look (sources/espn.py);
+        # sources that don't use it (valorant, manual) just ignore the key.
+        args["days_behind"] = days_behind
         # Per-league lookahead override — used for leagues whose season is
         # months away (NFL, NBA, etc.) so the schedule still surfaces during
         # the off-season window.
@@ -45,6 +48,7 @@ def refresh_league(league_id: str, days_ahead: int) -> tuple[int, str]:
 
 def refresh_all(
     days_ahead: int | None = None,
+    days_behind: int | None = None,
     progress: Callable[[int, int, str, int], None] | None = None,
 ) -> dict:
     """Refresh every league. Leagues are fetched concurrently on a thread pool
@@ -58,6 +62,8 @@ def refresh_all(
     init_db()
     if days_ahead is None:
         days_ahead = int(os.getenv("FETCH_DAYS_AHEAD", "180"))
+    if days_behind is None:
+        days_behind = int(os.getenv("FETCH_DAYS_BEHIND", "90"))
     results: dict[str, dict] = {}
     total = 0
     total_leagues = len(LEAGUES)
@@ -66,7 +72,7 @@ def refresh_all(
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {
-            ex.submit(refresh_league, league.id, days_ahead): league
+            ex.submit(refresh_league, league.id, days_ahead, days_behind): league
             for league in LEAGUES
         }
         for fut in as_completed(futures):
@@ -84,8 +90,9 @@ def refresh_all(
                 except Exception:
                     pass  # never let a progress sink break the refresh
 
-    # Clean up events that ended more than 2 days ago
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    # Clean up events that ended before the same look-back horizon the
+    # fetchers use, so this doesn't undercut what refresh_league just kept.
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_behind)).isoformat()
     purged = purge_old(cutoff)
     return {"total": total, "purged": purged, "leagues": results}
 

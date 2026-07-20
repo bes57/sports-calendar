@@ -55,21 +55,24 @@ def _multi_workers() -> int:
     return max(1, int(os.getenv("ESPN_MULTI_WORKERS", "6")))
 
 
-def _fetch_range(sport: str, league: str, days_ahead: int) -> list[dict]:
+def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2) -> list[dict]:
     """Fetch raw ESPN event dicts across a date range.
 
     Most leagues accept ?dates=YYYYMMDD-YYYYMMDD in 7-day chunks.
     Cricket returns 404 on date ranges but accepts ?dates=YYYY for a full
     season, which we then filter locally.
 
-    We start the window 2 days before UTC-today — matching refresh.py's
-    purge_old grace period — so a just-finished game isn't pruned by
-    prune_league_to a full day before purge_old would naturally drop it.
-    A 1-day pre-roll also cut it too close for users east of UTC, where
-    an evening-ET game can already read as "today" or "tomorrow" locally.
+    `days_behind` controls how far into the past the window starts — must be
+    >= refresh.py's purge_old grace period, or a just-finished game gets
+    pruned by prune_league_to a day before purge_old would naturally drop it.
+    The default of 2 is only a fallback for callers that don't pass one
+    explicitly; refresh_league always does, sourced from FETCH_DAYS_BEHIND.
     """
-    today = (datetime.now(timezone.utc) - timedelta(days=2)).date()
-    end = today + timedelta(days=max(1, days_ahead) + 1)
+    now_date = datetime.now(timezone.utc).date()
+    today = now_date - timedelta(days=days_behind)
+    # Anchored to now_date, not `today` — otherwise a bigger days_behind
+    # would eat into the forward-looking span by the same amount.
+    end = now_date + timedelta(days=max(1, days_ahead) + 1)
     raw_events: list[dict] = []
 
     if sport == "cricket":
@@ -185,7 +188,8 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
     # inside the broader NCAA baseball feed are tagged with notes containing
     # "Men's College World Series"). Drop anything that doesn't match.
     note_contains = source_args.get("note_contains")
-    raw = _fetch_range(sport, league, days_ahead)
+    days_behind = source_args.get("days_behind", 2)
+    raw = _fetch_range(sport, league, days_ahead, days_behind)
     out: list[Event] = []
     for e in raw:
         comps = e.get("competitions") or []
@@ -237,7 +241,8 @@ def fetch_espn_f1(source_args: dict, days_ahead: int) -> list[Event]:
     sport = source_args["sport"]
     league = source_args["league"]
     league_id = source_args.get("league_id_in_db") or "f1"
-    raw = _fetch_range(sport, league, days_ahead)
+    days_behind = source_args.get("days_behind", 2)
+    raw = _fetch_range(sport, league, days_ahead, days_behind)
     out: list[Event] = []
     for e in raw:
         gp_name = e.get("name") or e.get("shortName") or "Grand Prix"

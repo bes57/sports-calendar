@@ -45,7 +45,8 @@ Edit `.env` to enable the digest and tune behavior. The most important keys:
 | `RESEND_API_KEY` + `RESEND_FROM` | Use [Resend](https://resend.com) for email (recommended; free tier covers personal use) |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | Or use plain SMTP (e.g. Gmail App Password) |
 | `TWILIO_*` + `DIGEST_SMS_TO` | Optional: SMS via Twilio |
-| `FETCH_DAYS_AHEAD` | How far ahead to pull events (default 30) |
+| `FETCH_DAYS_AHEAD` | How far ahead to pull events (default 180) |
+| `FETCH_DAYS_BEHIND` | How far into the past to keep events, so you can scroll the calendar backwards (default 90) |
 | `REFRESH_INTERVAL_MIN` | How often to auto-refresh (default 30 min) |
 
 If no email provider is configured, `POST /api/digest/send` writes the rendered
