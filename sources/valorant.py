@@ -14,9 +14,12 @@ How it works:
      /event/matches/{vlr_id}/{slug}/ for that event's matches — completed and
      live ones included, not just upcoming.
   3. Start times come from the event page itself (date header + the match
-     row's clock, both US Eastern). Only when VLR lists no time (TBD) do we
-     fall back to the match page's `data-utc-ts`, reusing our DB's copy first
-     so we don't refetch matches we've already seen.
+     row's clock). Only when VLR lists no time (TBD) do we fall back to the
+     match page's `data-utc-ts`, reusing our DB's copy first so we don't
+     refetch matches we've already seen.
+  4. Every clock VLR gives us is a bare wall-clock in a timezone VLR picks per
+     request, so `_site_utc_offset()` reads that timezone off a match page
+     before any of them are converted. See the comment on `_FALLBACK_TZ`.
 """
 
 from __future__ import annotations
@@ -48,8 +51,42 @@ TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 INTER_REQUEST_DELAY = 0.2  # seconds between VLR fetches (polite)
 
 # VLR renders every time we scrape (event-page clocks and the match page's
-# misnamed `data-utc-ts` alike) as US Eastern wall-clock, DST-aware.
-_VLR_TZ = ZoneInfo("America/New_York")
+# misnamed `data-utc-ts` alike) as a bare wall-clock — no offset, no zone —
+# in ONE timezone per response. Which timezone that is depends on who asks:
+# from a laptop the match page reads "5:00 PM EDT", but from Railway / GitHub
+# Actions the same match rendered a UTC-5 clock, and assuming Eastern silently
+# put EVERY VCT match on the calendar an hour early. So never assume the zone:
+# `_site_utc_offset()` reads it back off the match page (whose header renders
+# `h:mm A z` — the zone VLR actually used) and everything converts with that.
+# This is only the last resort for when that probe fails.
+_FALLBACK_TZ = ZoneInfo("America/New_York")
+
+# The `z` moment-timezone prints is usually an abbreviation. Mapping each to a
+# fixed offset is exact — the abbreviation already encodes DST (EDT vs EST).
+# Zones a US/EU-hosted scrape could plausibly be served; anything else falls
+# through to `_FALLBACK_TZ`. Ambiguous abbreviations are deliberately absent
+# (IST = Ireland or India, JST vs. others), except CST: US Central in winter is
+# far likelier for our hosts than the China Standard Time that shares it.
+_ZONE_OFFSET_MINUTES = {
+    "UTC": 0, "GMT": 0, "Z": 0,
+    "EDT": -4 * 60, "EST": -5 * 60,
+    "CDT": -5 * 60, "CST": -6 * 60,
+    "MDT": -6 * 60, "MST": -7 * 60,
+    "PDT": -7 * 60, "PST": -8 * 60,
+    "AKDT": -8 * 60, "AKST": -9 * 60, "HST": -10 * 60,
+    "ADT": -3 * 60, "AST": -4 * 60,
+    "NDT": -(2 * 60 + 30), "NST": -(3 * 60 + 30),
+    "WET": 0, "WEST": 60, "BST": 60,
+    "CET": 60, "CEST": 2 * 60,
+    "EET": 2 * 60, "EEST": 3 * 60,
+}
+
+# "5:00 PM EDT" / "5:00 PM +05:30" — the match header's rendered start time.
+_RENDERED_TIME_RE = re.compile(r"\d{1,2}:\d{2}\s*[AP]M\s+(?P<zone>\S+)", re.I)
+# Zones with no abbreviation render numerically: "+08", "-04:30", "GMT+2".
+_NUMERIC_ZONE_RE = re.compile(
+    r"^(?:UTC|GMT)?(?P<sign>[+-])(?P<h>\d{1,2})(?::?(?P<m>\d{2}))?$", re.I
+)
 
 
 def fetch_valorant(source_args: dict, days_ahead: int) -> list[Event]:
@@ -81,62 +118,70 @@ def fetch_valorant(source_args: dict, days_ahead: int) -> list[Event]:
     out: list[Event] = []
     seen: set[str] = set()
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True, headers=HEADERS) as client:
+        # Scrape every event first: the match ids it yields are what we probe
+        # for VLR's rendered timezone, and no wall-clock can be converted to
+        # UTC until we know it.
+        scraped: list[tuple[str, str, dict]] = []  # (region, event label, match)
         for vlr_id, slug, region, label in targets:
             try:
                 matches = _scrape_event_matches(client, vlr_id, slug)
             except Exception:
                 continue  # one bad event shouldn't break the rest
-            for m in matches:
-                match_id = m["match_id"]
-                start_iso = m["start_iso"]
-                if not start_iso:  # VLR had no time on the event page (TBD)
-                    prev = cached.get(match_id)
-                    if prev:
-                        start_iso = prev["start_utc"]
-                    else:
-                        start_iso = _scrape_match_utc(client, match_id)
-                        time.sleep(INTER_REQUEST_DELAY)
-                try:
-                    start = datetime.fromisoformat((start_iso or "").replace("Z", "+00:00"))
-                except ValueError:
-                    continue
-                if not floor <= start <= cutoff:
-                    continue
-                seen.add(match_id)
-                end = start + timedelta(hours=2)  # typical VCT BO3 length
-                event_label = label if region == "International" else f"{label} — {region}"
-                subtitle = (
-                    f"{event_label} — {m['stage']}" if m.get("stage") else event_label
-                )
-                out.append(Event(
-                    league=league_id,
-                    source_id=match_id,
-                    title=f"{m['team_a']} vs {m['team_b']}",
-                    subtitle=subtitle,
-                    start_utc=to_utc_iso(start),
-                    end_utc=to_utc_iso(end),
-                    venue=None,
-                    broadcast=None,
-                    url=f"https://www.vlr.gg/{match_id}/",
-                    status=m["status"],
-                    extra={
-                        "event": label,
-                        "region": region,
-                        "stage": m.get("stage", ""),
-                        "team_a": m["team_a"],
-                        "team_b": m["team_b"],
-                        # Same shape ESPN's fetcher uses (name/abbr/home_away) —
-                        # db.get_teams() and the calendar's favorite-team
-                        # matching both key off "competitors" specifically, so
-                        # without this VCT teams can't be favorited or
-                        # highlighted at all. VLR has no short code for teams,
-                        # so abbr just reuses the full scraped name.
-                        "competitors": [
-                            {"name": m["team_a"], "abbr": m["team_a"], "home_away": "home"},
-                            {"name": m["team_b"], "abbr": m["team_b"], "home_away": "away"},
-                        ],
-                    },
-                ))
+            scraped.extend((region, label, m) for m in matches)
+
+        offset = _site_utc_offset(client, [m["match_id"] for _, _, m in scraped])
+
+        for region, label, m in scraped:
+            match_id = m["match_id"]
+            start_iso = _wall_to_utc_iso(m["start_wall"], offset)
+            if not start_iso:  # VLR had no time on the event page (TBD)
+                prev = cached.get(match_id)
+                if prev:
+                    start_iso = prev["start_utc"]
+                else:
+                    start_iso = _scrape_match_utc(client, match_id)
+                    time.sleep(INTER_REQUEST_DELAY)
+            try:
+                start = datetime.fromisoformat((start_iso or "").replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if not floor <= start <= cutoff:
+                continue
+            seen.add(match_id)
+            end = start + timedelta(hours=2)  # typical VCT BO3 length
+            event_label = label if region == "International" else f"{label} — {region}"
+            subtitle = (
+                f"{event_label} — {m['stage']}" if m.get("stage") else event_label
+            )
+            out.append(Event(
+                league=league_id,
+                source_id=match_id,
+                title=f"{m['team_a']} vs {m['team_b']}",
+                subtitle=subtitle,
+                start_utc=to_utc_iso(start),
+                end_utc=to_utc_iso(end),
+                venue=None,
+                broadcast=None,
+                url=f"https://www.vlr.gg/{match_id}/",
+                status=m["status"],
+                extra={
+                    "event": label,
+                    "region": region,
+                    "stage": m.get("stage", ""),
+                    "team_a": m["team_a"],
+                    "team_b": m["team_b"],
+                    # Same shape ESPN's fetcher uses (name/abbr/home_away) —
+                    # db.get_teams() and the calendar's favorite-team
+                    # matching both key off "competitors" specifically, so
+                    # without this VCT teams can't be favorited or
+                    # highlighted at all. VLR has no short code for teams,
+                    # so abbr just reuses the full scraped name.
+                    "competitors": [
+                        {"name": m["team_a"], "abbr": m["team_a"], "home_away": "home"},
+                        {"name": m["team_b"], "abbr": m["team_b"], "home_away": "away"},
+                    ],
+                },
+            ))
 
     out.extend(_revive_past(cached, seen, floor, now))
     return out
@@ -185,9 +230,12 @@ _DATE_LABEL_RE = re.compile(r"^[A-Za-z]{3},\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}")
 
 
 def _scrape_event_matches(client: httpx.Client, vlr_id: str, slug: str) -> list[dict]:
-    """Return {match_id, team_a, team_b, stage, status, start_iso} for every
+    """Return {match_id, team_a, team_b, stage, status, start_wall} for every
     match at one event — completed and live ones included, because refresh.py
     prunes rows a fetcher stops returning.
+
+    `start_wall` is naive on purpose: the event page states no timezone, so the
+    caller attaches the one `_site_utc_offset()` found.
     """
     url = f"https://www.vlr.gg/event/matches/{vlr_id}/{slug}/"
     r = client.get(url)
@@ -239,7 +287,7 @@ def _scrape_event_matches(client: httpx.Client, vlr_id: str, slug: str) -> list[
             "team_b": team_b,
             "stage": stage,
             "status": status,
-            "start_iso": _combine_et(
+            "start_wall": _combine_wall(
                 day_by_card.get(id(card)) if card is not None else None,
                 time_el.get_text(strip=True) if time_el else "",
             ),
@@ -258,38 +306,96 @@ def _parse_label_date(text: str) -> date | None:
         return None
 
 
-def _combine_et(day: date | None, clock: str) -> str | None:
-    """Combine a date header with a match row's clock ('5:00 PM') — both US
-    Eastern — into canonical UTC. None when VLR lists no usable time (TBD)."""
+def _combine_wall(day: date | None, clock: str) -> datetime | None:
+    """Combine a date header with a match row's clock ('5:00 PM') into the naive
+    wall-clock VLR printed. None when VLR lists no usable time (TBD)."""
     if day is None or not clock:
         return None
     try:  # whitespace-stripped so both "5:00 PM" and "5:00PM" parse
         t = datetime.strptime("".join(clock.upper().split()), "%I:%M%p").time()
     except ValueError:
         return None
-    return to_utc_iso(datetime.combine(day, t, tzinfo=_VLR_TZ))
+    return datetime.combine(day, t)
+
+
+def _wall_to_utc_iso(wall: datetime | None, offset: timedelta | None) -> str | None:
+    """Pin one of VLR's naive wall-clocks to the timezone it was rendered in."""
+    if wall is None:
+        return None
+    tz = timezone(offset) if offset is not None else _FALLBACK_TZ
+    return to_utc_iso(wall.replace(tzinfo=tz))
+
+
+def _zone_offset(token: str) -> timedelta | None:
+    """'EDT' → -4h, '+05:30' → 5h30m, 'GMT+2' → 2h. None if unrecognized."""
+    tok = (token or "").strip().rstrip(".").upper()
+    if tok in _ZONE_OFFSET_MINUTES:
+        return timedelta(minutes=_ZONE_OFFSET_MINUTES[tok])
+    m = _NUMERIC_ZONE_RE.match(tok)
+    if not m:
+        return None
+    minutes = int(m.group("h")) * 60 + int(m.group("m") or 0)
+    return timedelta(minutes=-minutes if m.group("sign") == "-" else minutes)
+
+
+def _site_utc_offset(client: httpx.Client, match_ids: list[str]) -> timedelta | None:
+    """The UTC offset VLR is rendering its wall-clocks in, read off a match page.
+
+    Every clock on the event pages is bare — "5:00 PM", no zone — and VLR
+    serves that clock in a timezone of its own choosing, so guessing it wrong
+    shifts every VCT match on the calendar by the difference. The match page is
+    the one place VLR names the zone: its header renders `h:mm A z`
+    ("5:00 PM EDT"). One probe per refresh sets the zone for every clock.
+
+    Returns None (caller falls back to Eastern) if no candidate page yields a
+    zone we recognize — a few ids are tried so one dead match page can't
+    silently skew a whole refresh.
+    """
+    for match_id in match_ids[:3]:
+        _, offset = _scrape_match_header(client, match_id)
+        time.sleep(INTER_REQUEST_DELAY)
+        if offset is not None:
+            return offset
+    return None
+
+
+def _scrape_match_header(
+    client: httpx.Client, match_id: str
+) -> tuple[datetime | None, timedelta | None]:
+    """(naive start wall-clock, rendered UTC offset) from a match page.
+
+    `data-utc-ts` is misnamed: the value is the match's wall-clock time in
+    whatever zone VLR rendered the page in, not UTC. Verified 2026-08-14:
+    data-utc-ts "2026-08-14 17:00:00" renders as "5:00 PM EDT" here — while the
+    same page fetched from our deploy host rendered a UTC-5 clock instead.
+    """
+    try:
+        r = client.get(f"https://www.vlr.gg/{match_id}/")
+        r.raise_for_status()
+    except Exception:
+        return None, None
+    soup = BeautifulSoup(r.text, "html.parser")
+
+    wall = offset = None
+    for el in soup.select("div.moment-tz-convert[data-utc-ts]"):
+        if wall is None:
+            try:
+                wall = datetime.strptime(el["data-utc-ts"], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                pass
+        # Only the `z`-formatted copy names the zone; its sibling is date-only.
+        if offset is None and "z" in (el.get("data-moment-format") or ""):
+            m = _RENDERED_TIME_RE.search(el.get_text(" ", strip=True))
+            if m:
+                offset = _zone_offset(m.group("zone"))
+        if wall is not None and offset is not None:
+            break
+    return wall, offset
 
 
 def _scrape_match_utc(client: httpx.Client, match_id: str) -> str | None:
-    """Return the match's start time as ISO UTC, or None on failure.
-
-    `data-utc-ts` is misnamed: vlr.gg's value is the match's wall-clock time in
-    US Eastern (DST-aware), not UTC. Verified on 2026-06-06: data-utc-ts
-    "2026-06-07 10:00:00" renders as "7:00 AM PDT" on the page, i.e. 10 EDT.
-    """
-    url = f"https://www.vlr.gg/{match_id}/"
-    try:
-        r = client.get(url)
-        r.raise_for_status()
-    except Exception:
-        return None
-    soup = BeautifulSoup(r.text, "html.parser")
-    el = soup.find("div", class_="moment-tz-convert", attrs={"data-utc-ts": True})
-    if not el:
-        return None
-    ts = el["data-utc-ts"]  # "2026-06-06 10:00:00" — Eastern, despite the attribute name
-    try:
-        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_VLR_TZ)
-    except ValueError:
-        return None
-    return dt.astimezone(timezone.utc).isoformat()
+    """Return the match's start time as ISO UTC, or None on failure. Used only
+    for matches the event page listed without a time, so it reads both the
+    clock and the zone off that match's own page."""
+    wall, offset = _scrape_match_header(client, match_id)
+    return _wall_to_utc_iso(wall, offset)
