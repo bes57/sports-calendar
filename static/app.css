@@ -739,6 +739,20 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
 .popover-row-block { flex-direction: column; gap: 4px; }
 .popover-row-block .popover-label { width: auto; padding-top: 0; margin-bottom: 2px; }
 #popover-note { line-height: 1.45; color: var(--text-soft); }
+.popover-card { list-style: none; margin: 0; padding: 0; width: 100%; }
+.popover-card li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--border);
+}
+.popover-card li:last-child { border-bottom: 0; }
+/* The main event sits first — give it the weight the tile title has. */
+.popover-card li:first-child .popover-bout-names { font-weight: 700; }
+.popover-bout-names { color: var(--text-soft); }
+.popover-bout-weight { color: var(--muted); font-size: 11px; white-space: nowrap; padding-top: 1px; }
 .popover-label {
   flex-shrink: 0;
   width: 64px;

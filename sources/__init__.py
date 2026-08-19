@@ -11,7 +11,7 @@ from datetime import datetime
 
 from db import Event
 
-from .espn import fetch_espn, fetch_espn_f1, fetch_espn_multi
+from .espn import fetch_espn, fetch_espn_f1, fetch_espn_mma, fetch_espn_multi
 from .valorant import fetch_valorant
 from .manual import fetch_manual
 
@@ -24,6 +24,7 @@ FETCHERS: dict[str, Fetcher] = {
     "espn": fetch_espn,
     "espn_f1": fetch_espn_f1,
     "espn_multi": fetch_espn_multi,
+    "espn_mma": fetch_espn_mma,
     "valorant": fetch_valorant,
     "manual": fetch_manual,
 }

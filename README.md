@@ -56,8 +56,9 @@ digest to `data/last_digest.html` so you can still preview it.
 
 | League | Source | Endpoint |
 |---|---|---|
-| MLB, NBA, WNBA, NHL, UFC, MMA (PFL), IPL | ESPN scoreboard | `site.api.espn.com/apis/site/v2/sports/...` |
+| MLB, NBA, WNBA, NHL, IPL | ESPN scoreboard | `site.api.espn.com/apis/site/v2/sports/...` |
 | F1 | ESPN scoreboard, split into per-session events (FP1/FP2/FP3/Quali/Race) | same as above |
+| UFC, MMA (PFL) | ESPN scoreboard, split into per-segment events (early prelims/prelims/main card) | same as above |
 | Valorant | [vlrggapi](https://vlrggapi.vercel.app) (community vlr.gg scraper) | `vlrggapi.vercel.app/match?q=upcoming` |
 
 All sources are public, no API keys required.

@@ -1071,6 +1071,27 @@
     setRow('popover-venue-row', ep.venue);
     document.getElementById('popover-venue').textContent = ep.venue || '';
 
+    // Fight cards: bouts arrive headliner-last (ESPN's running order), but a
+    // card reads top-down from the main event, so render it reversed.
+    const bouts = ep.bouts || [];
+    const cardEl = document.getElementById('popover-card');
+    cardEl.innerHTML = '';
+    bouts.slice().reverse().forEach(b => {
+      const li = document.createElement('li');
+      const names = document.createElement('span');
+      names.className = 'popover-bout-names';
+      names.textContent = `${b.a} vs. ${b.b}`;
+      li.appendChild(names);
+      if (b.weight) {
+        const w = document.createElement('span');
+        w.className = 'popover-bout-weight';
+        w.textContent = b.weight;
+        li.appendChild(w);
+      }
+      cardEl.appendChild(li);
+    });
+    setRow('popover-card-row', bouts.length);
+
     setRow('popover-note-row', ep.note);
     document.getElementById('popover-note').textContent = ep.note || '';
 

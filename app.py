@@ -198,6 +198,8 @@ async def api_events(
                 "status": r["status"],
                 "note": _league_note(r["league"]),
                 "competitors": extra.get("competitors") or [],
+                # MMA only: the segment's bouts, headliner last (see fetch_espn_mma)
+                "bouts": extra.get("bouts") or [],
             },
         })
     return JSONResponse(out)
@@ -205,14 +207,19 @@ async def api_events(
 
 # Per-league context shown in the event popover. Kept here (vs the DB) so we
 # can edit the wording without re-fetching anything.
+# Each fight card is split into one block per segment (early prelims / prelims /
+# main card) with that segment's real start time, so the old "time shown is the
+# main card start, prelims are ~2h earlier" caveat no longer applies — it was
+# also wrong: ESPN dates an event at its FIRST bout, so the single block used to
+# start at the early prelims and end before the headliners walked out.
 _LEAGUE_NOTES = {
     "ufc": (
-        "Time shown is the main card start. "
-        "Prelims typically start ~2 hours earlier; early prelims another ~2 hours before that."
+        "Prelims and the main card are listed as separate blocks, each at its "
+        "own start time."
     ),
     "mma": (
-        "Time shown is the main card start. "
-        "Prelims typically start ~2 hours earlier."
+        "Prelims and the main card are listed as separate blocks, each at its "
+        "own start time."
     ),
 }
 

@@ -6,10 +6,12 @@ ESPN exposes a public JSON scoreboard at:
 It accepts an optional `?dates=YYYYMMDD-YYYYMMDD` range. We fetch in 7-day
 chunks because ESPN clamps single requests to ~10 days for most leagues.
 
-Two parser variants are exported:
+Parser variants exported:
 - fetch_espn       : one calendar event per ESPN event. Used for most leagues.
 - fetch_espn_f1    : one calendar event per *session* within an F1 GP weekend
                      (FP1/FP2/FP3/Quali/Sprint/Race).
+- fetch_espn_mma   : one calendar event per *card segment* of a fight night
+                     (early prelims / prelims / main card).
 """
 
 from __future__ import annotations
@@ -274,6 +276,148 @@ def fetch_espn_f1(source_args: dict, days_ahead: int) -> list[Event]:
             ))
     return out
 
+
+# ESPN lists a fight card's bouts in running order — prelims first, main event
+# last — and every bout in the same segment of the night shares one start time.
+# So the groups of bouts, ordered by that time, ARE the night's segments, and
+# naming them backwards from the final group is what makes "Main Card" reliable
+# whether a card has one segment (Contender Series) or three (a numbered UFC).
+_MMA_SEGMENTS = ("Main Card", "Prelims", "Early Prelims")
+
+# On a busy evening a fight card gets one narrow lane among a dozen ball games,
+# so the tile has room for a handful of characters — and ESPN's shortName spends
+# 29 of them before saying anything ("Dana White's Contender Series" rendered as
+# "Dan Whi Con Ser vs. Faz"). Tiles use the promotion's own abbreviation; the
+# full name still shows on the popover.
+_CARD_TILE_ALIASES = {"Dana White's Contender Series": "UFC DWCS"}
+
+
+def fetch_espn_mma(source_args: dict, days_ahead: int) -> list[Event]:
+    """MMA: one calendar event per card segment, headlined by its last bout.
+
+    ESPN dates a fight card at its FIRST bout, so one block per event put UFC
+    330 on the calendar at 5:30 PM ET (early prelims) and ended it at 8:30 —
+    half an hour before Makhachev vs. Machado Garry walked out at 9. Splitting
+    on the bout start times fixes the timing and gives every block a title you
+    can pick out of a crowded evening, the same way fetch_espn_f1 splits a
+    Grand Prix weekend into sessions.
+    """
+    sport = source_args["sport"]
+    league = source_args["league"]
+    league_id = source_args.get("league_id_in_db") or _league_id_from_args(sport, league)
+    duration_hours = source_args.get("duration_hours") or _default_duration_hours(sport)
+    days_behind = source_args.get("days_behind", 2)
+    raw = _fetch_range(sport, league, days_ahead, days_behind)
+
+    out: list[Event] = []
+    for e in raw:
+        segments = _mma_segments(e.get("competitions") or [])
+        if not segments:
+            continue
+        card_name = e.get("name") or e.get("shortName") or "Fight card"
+        short_card = e.get("shortName") or card_name
+        for i, (start, comps) in enumerate(segments):
+            bouts = _bouts(comps)
+            if not bouts:
+                continue
+            # Index from the END of the night: 0 is always the main card, so a
+            # card that later gains an early-prelims block doesn't renumber
+            # (and re-key) the segments already on the calendar.
+            from_end = len(segments) - 1 - i
+            segment = _MMA_SEGMENTS[min(from_end, len(_MMA_SEGMENTS) - 1)]
+            headline = bouts[-1]  # last bout of a segment tops it
+            tile_card = _CARD_TILE_ALIASES.get(short_card, short_card)
+            if from_end != 0:
+                title = f"{short_card} — {segment}"
+                short_name = f"{tile_card} — {segment}"
+            elif ":" in card_name and " vs" in card_name:
+                # ESPN already bills the main event in the event name, in the
+                # promotion's own wording and surname-only ("UFC 330: Makhachev
+                # vs. Machado Garry"). Prefer it over anything we'd assemble.
+                title = card_name
+                short_name = card_name if tile_card == short_card else f"{tile_card}: {card_name.split(':', 1)[1].strip()}"
+            else:  # Contender Series and the like: no matchup in the name
+                title = f"{short_card}: {headline['a']} vs. {headline['b']}"
+                short_name = (f"{tile_card}: {_last_name(headline['a'])} "
+                              f"vs. {_last_name(headline['b'])}")
+            out.append(Event(
+                league=league_id,
+                source_id=str(e["id"]) if len(segments) == 1 else f"{e['id']}-{from_end}",
+                title=title,
+                subtitle=f"{card_name} — {segment}",
+                start_utc=_to_iso(start),
+                end_utc=_to_iso(_mma_segment_end(
+                    start,
+                    segments[i + 1][0] if i + 1 < len(segments) else None,
+                    duration_hours,
+                )),
+                venue=_venue(comps[0]),
+                broadcast=_broadcast(comps[0]),
+                url=_event_url(e),
+                status=_status(comps[-1]),  # the headliner decides when a card is over
+                extra={
+                    "short_name": short_name,
+                    # Just the headliners: every fighter on the card would work
+                    # here, but competitors is what feeds the favorites list and
+                    # a dozen names per card would bury the team picker.
+                    "competitors": _competitors(comps[-1]),
+                    "segment": segment,
+                    "card": card_name,
+                    "bouts": bouts,
+                },
+            ))
+    return out
+
+
+def _mma_segments(comps: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Group one event's bouts by start time → [(iso start, bouts), ...] earliest
+    first. ESPN's timestamps share a format, so sorting them as strings is safe."""
+    by_start: dict[str, list[dict]] = {}
+    for c in comps:
+        start = c.get("date") or c.get("startDate")
+        if start:
+            by_start.setdefault(start, []).append(c)
+    return sorted(by_start.items())
+
+
+def _mma_segment_end(start: str, next_start: str | None, duration_hours: float) -> str | None:
+    """A segment runs until the next one starts — that's what "prelims end when
+    the main card begins" means. Falls back to the league's duration for the
+    last segment of the night, or if ESPN's gap is too big to be a real one."""
+    if next_start:
+        try:
+            gap = (datetime.fromisoformat(next_start.replace("Z", "+00:00"))
+                   - datetime.fromisoformat(start.replace("Z", "+00:00")))
+        except ValueError:
+            gap = None
+        if gap is not None and timedelta(0) < gap <= timedelta(hours=8):
+            return next_start
+    return _add_hours(start, duration_hours)
+
+
+def _bouts(comps: list[dict]) -> list[dict]:
+    """[{weight, a, b}] for one segment, in ESPN's running order (headliner last)."""
+    out = []
+    for c in comps:
+        names = [(x.get("athlete") or {}).get("displayName") or x.get("displayName")
+                 for x in (c.get("competitors") or [])]
+        names = [n for n in names if n]
+        if len(names) < 2:
+            continue
+        kind = c.get("type") or {}
+        out.append({
+            "weight": kind.get("abbreviation") or kind.get("text") or "",
+            "a": names[0],
+            "b": names[1],
+        })
+    return out
+
+
+def _last_name(name: str) -> str:
+    """'Ian Machado Garry' -> 'Garry'. Tile space is scarce; the surname is what
+    a reader scans for, and full names are still on the popover."""
+    parts = (name or "").split()
+    return parts[-1] if parts else (name or "")
 
 def _competitors(comp: dict) -> list[dict]:
     out = []

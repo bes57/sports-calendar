@@ -110,14 +110,15 @@ LEAGUES: list[League] = [
     League(
         id="ufc", name="UFC", full_name="Ultimate Fighting Championship",
         color="#7F1D1D",  # maroon
-        source="espn", source_args={"sport": "mma", "league": "ufc"},
-        duration_hours=3.0,  # main card only; prelims start ~2h earlier
+        source="espn_mma", source_args={"sport": "mma", "league": "ufc"},
+        duration_hours=3.0,  # applies to the last segment of the night; the
+                             # earlier ones end when the next segment starts
         group="Combat",
     ),
     League(
         id="mma", name="MMA (PFL)", full_name="Professional Fighters League",
         color="#A16207",  # dark gold
-        source="espn", source_args={"sport": "mma", "league": "pfl"},
+        source="espn_mma", source_args={"sport": "mma", "league": "pfl"},
         duration_hours=3.0,
         group="Combat",
     ),
