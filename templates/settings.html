@@ -56,6 +56,23 @@
   </section>
 
   <section class="card">
+    <h2>Links</h2>
+    <p class="card-hint">
+      An event's popover links to its <strong>Source</strong> (ESPN, MLB.com for baseball,
+      vlr.gg for Valorant) and its <strong>Kalshi</strong> market. <strong>Both</strong> opens the
+      two together, Kalshi on the left and the source on the right.
+    </p>
+    <p class="card-hint">
+      Browsers let a page open only <em>one</em> new tab per click, so by default Both puts the
+      source in a new tab and turns this tab into Kalshi — <strong>Back</strong> brings K-Cal
+      straight back to the same dates. To keep K-Cal open and get two new tabs instead, allow
+      pop-ups for this site once: in Chrome, open <code>chrome://settings/content/popups</code>,
+      and under <em>Allowed to send pop-ups and use redirects</em> add
+      <code>{{ request.url.hostname }}</code>.
+    </p>
+  </section>
+
+  <section class="card">
     <h2>Leagues</h2>
     <div class="table-scroll">
     <table class="kv leagues-status">

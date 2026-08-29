@@ -6,6 +6,9 @@
   const STORAGE_KEY = 'sports-cal-leagues';
   const VIEW_KEY = 'sports-cal-view';
   const TZ_KEY = 'sports-cal-tz';
+  // Visible range, kept for this tab only, so that Back (after "Both" turned
+  // this tab into Kalshi) lands on the dates you were looking at.
+  const DATE_KEY = 'sports-cal-date';
   const FORMAT_KEY = 'sports-cal-timefmt';
   const FAV_TEAMS_KEY = 'sports-cal-fav-teams';
 
@@ -36,6 +39,10 @@
   if (navType === 'reload') {
     localStorage.removeItem(VIEW_KEY);
     localStorage.removeItem(STORAGE_KEY);
+  }
+  let restoredDate = null;
+  if (navType === 'back_forward') {
+    try { restoredDate = sessionStorage.getItem(DATE_KEY); } catch (e) { /* no session storage */ }
   }
 
   // Compact grid — squashes slots so a full 24h always fits without
@@ -603,6 +610,7 @@
     },
     datesSet: (info) => {
       localStorage.setItem(VIEW_KEY, info.view.type);
+      try { sessionStorage.setItem(DATE_KEY, info.view.currentStart.toISOString()); } catch (e) { /* ignore */ }
       document.body.dataset.view = info.view.type;
       updateTodayButtonText(info.view.type);
       scheduleUniformizeWeek();
@@ -673,7 +681,7 @@
     // hour while still aligning to slot boundaries.
     const slotLabelInt = fmtDuration(min / _gcd(min, 60) * 60);
     const view = (calendar && calendar.view) ? calendar.view.type : initialView;
-    const date = preserveDate && calendar ? calendar.getDate() : undefined;
+    const date = preserveDate && calendar ? calendar.getDate() : (restoredDate || undefined);
     if (calendar) calendar.destroy();
     calendar = new FullCalendar.Calendar(el, buildCalendarOptions({
       slotDuration: slotDur,
@@ -1111,7 +1119,6 @@
     setRow('popover-note-row', ep.note);
     document.getElementById('popover-note').textContent = ep.note || '';
 
-    document.getElementById('popover-hint').hidden = true;
     const link = document.getElementById('popover-link');
     if (ep.url) { link.href = ep.url; link.style.display = ''; }
     else { link.style.display = 'none'; }
@@ -1170,22 +1177,23 @@
   // mousedown grants activation, so a page gets one new tab per click
   // unless the site's pop-up setting is "Allow". Verified against Chromium
   // source 2026-08-29. So:
-  // Tab order is Kalshi on the left, Source on the right, whichever way the
-  // browser lets us open them. Chrome inserts a new tab right after the
-  // active one, so two new tabs come out in opening order:
-  //   allowed: [K-Cal][Kalshi][Source]  — open Kalshi first, then Source.
-  //   blocked: only one new tab — give it the Source, and offer Kalshi in
-  //            THIS tab (a same-tab navigation, never captured by the
-  //            installed app): [Kalshi][Source]. Back brings K-Cal back.
+  // Both opens both pages from the one click, Kalshi on the left and the
+  // Source on the right. Chrome inserts a new tab right after the active
+  // one, so two new tabs come out in opening order:
+  //   pop-ups allowed for this site: [K-Cal][Kalshi][Source]
+  //   default (one new tab per click): the new tab gets the Source and THIS
+  //     tab becomes Kalshi — a same-tab navigation, which the installed
+  //     Kalshi app never captures — giving [Kalshi][Source]; Back returns
+  //     to the calendar at the same dates (see DATE_KEY).
   // Both tabs are opened blank first, then pointed, so we know which case
-  // we're in before deciding what goes where.
-  const popoverHint = document.getElementById('popover-hint');
+  // we're in before deciding what goes where. Settings explains the
+  // trade-off and the one-time pop-up permission that keeps K-Cal open.
   document.getElementById('popover-both').addEventListener('click', (e) => {
     e.preventDefault();
     const sourceUrl = e.currentTarget.href;
     const kalshiUrl = e.currentTarget.dataset.kalshi;
     const first = window.open('', '_blank');
-    if (!first) return;  // even one tab blocked — nothing we can do
+    if (!first) { window.location.assign(sourceUrl); return; }  // pop-ups off entirely
     const second = window.open('', '_blank');
     if (second) {
       point(first, kalshiUrl);
@@ -1193,24 +1201,12 @@
       return;
     }
     point(first, sourceUrl);
-    popoverHint.innerHTML =
-      '<a href="#" id="popover-hint-open" class="popover-link">Open Kalshi in this tab &rarr;</a>' +
-      '<span class="popover-hint-why">Chrome blocked the second tab — it allows one new tab ' +
-      'per click. Back brings K-Cal back. To get two new tabs and keep K-Cal open: click the ' +
-      'blocked-pop-up icon at the right end of the address bar and choose “Always allow”.</span>';
-    popoverHint.dataset.kalshi = kalshiUrl;
-    popoverHint.hidden = false;
+    window.location.assign(kalshiUrl);
   });
   function point(w, url) {
     try { w.opener = null; } catch (e) { /* harmless */ }
     w.location.href = url;
   }
-  popoverHint.addEventListener('click', (e) => {
-    const open = e.target.closest('#popover-hint-open');
-    if (!open) return;
-    e.preventDefault();
-    window.location.assign(popoverHint.dataset.kalshi);
-  });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
     if (popover.contains(e.target)) return;

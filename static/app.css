@@ -776,9 +776,6 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   font-size: 13px;
 }
 .popover-link:hover { text-decoration: underline; }
-.popover-hint { margin-top: 10px; font-size: 12px; line-height: 1.45; color: var(--muted); }
-.popover-hint .popover-link { display: block; font-size: 13px; margin-bottom: 4px; }
-.popover-hint-why { display: block; }
 
 /* --- Settings page --- */
 .settings-wrap { padding: 28px; max-width: 920px; margin: 0 auto; }
@@ -793,6 +790,7 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
 }
 .card h2 { margin: 0 0 10px; font-size: 15px; }
 .card-hint { color: var(--muted); font-size: 12.5px; margin: 0 0 16px; line-height: 1.5; }
+.card-hint code { font-size: 12px; background: var(--hover); padding: 1px 5px; border-radius: 4px; }
 table.kv { border-collapse: collapse; width: 100%; margin-top: 8px; }
 table.kv td, table.kv th { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
 .actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
