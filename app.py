@@ -25,6 +25,7 @@ from leagues import LEAGUES, by_id, grouped as grouped_leagues
 from refresh import refresh_all, refresh_league
 from digest import build_digest_text, build_digest_html, build_digest_sms, send_digest
 from scheduler import start_scheduler
+import kalshi
 
 
 from timeutil import to_utc_iso as _to_utc_iso
@@ -195,6 +196,10 @@ async def api_events(
                 "venue": r["venue"],
                 "broadcast": r["broadcast"],
                 "url": r["url"],
+                # The game's own Kalshi market when a refresh matched one,
+                # else the league's market listing; None for leagues Kalshi
+                # doesn't cover (golf, drafts …) and the popover hides it.
+                "kalshiUrl": extra.get("kalshi_url") or kalshi.series_url(r["league"]),
                 "status": r["status"],
                 "note": _league_note(r["league"]),
                 "competitors": extra.get("competitors") or [],

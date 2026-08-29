@@ -763,9 +763,14 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   font-weight: 700;
   padding-top: 2px;
 }
+.popover-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 14px;
+}
 .popover-link {
   display: inline-block;
-  margin-top: 14px;
   color: var(--accent);
   font-weight: 600;
   font-size: 13px;

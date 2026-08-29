@@ -138,7 +138,14 @@ LEAGUES: list[League] = [
     League(
         id="ncaaf", name="NCAAF", full_name="NCAA Football",
         color="#991B1B",  # red-800
-        source="espn", source_args={"sport": "football", "league": "college-football"},
+        source="espn", source_args={
+            "sport": "football",
+            "league": "college-football",
+            # ESPN's scoreboard defaults to groups=80 (FBS only), which
+            # silently drops every FCS game — Idaho, Weber State and the rest
+            # of the Big Sky included. 90 is all of Division I (FBS + FCS).
+            "groups": "90",
+        },
         duration_hours=3.5,
         group="Football",
     ),

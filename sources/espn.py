@@ -29,7 +29,8 @@ BASE = "https://site.api.espn.com/apis/site/v2/sports"
 TIMEOUT = httpx.Timeout(15.0, connect=10.0)
 
 
-def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date) -> list[dict]:
+def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date,
+                 extra_params: dict | None = None) -> list[dict]:
     """Fetch one ?dates=START-END scoreboard chunk. Each call uses its own
     httpx.Client so chunks can be fetched in parallel (Client isn't safe to
     share across threads). A 404 means "no games in this window" — not an
@@ -38,6 +39,7 @@ def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date) -> list[di
     params = {
         "dates": f"{c_start.strftime('%Y%m%d')}-{c_end.strftime('%Y%m%d')}",
         "limit": "200",
+        **(extra_params or {}),
     }
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
         r = client.get(url, params=params)
@@ -57,8 +59,12 @@ def _multi_workers() -> int:
     return max(1, int(os.getenv("ESPN_MULTI_WORKERS", "6")))
 
 
-def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2) -> list[dict]:
+def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2,
+                 extra_params: dict | None = None) -> list[dict]:
     """Fetch raw ESPN event dicts across a date range.
+
+    `extra_params` are added to every scoreboard request — e.g. `groups` for
+    college football, which ESPN otherwise limits to FBS.
 
     Most leagues accept ?dates=YYYYMMDD-YYYYMMDD in 7-day chunks.
     Cricket returns 404 on date ranges but accepts ?dates=YYYY for a full
@@ -84,7 +90,8 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2)
             years = {today.year, end.year}  # next year too if window crosses Jan 1
             for y in years:
                 url = f"{BASE}/{sport}/{league}/scoreboard"
-                r = client.get(url, params={"dates": str(y), "limit": "500"})
+                r = client.get(url, params={"dates": str(y), "limit": "500",
+                                            **(extra_params or {})})
                 r.raise_for_status()
                 data = r.json()
                 raw_events.extend(data.get("events", []) or [])
@@ -103,7 +110,8 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2)
         workers = min(len(chunks), _chunk_workers()) or 1
         with ThreadPoolExecutor(max_workers=workers) as ex:
             for evs in ex.map(
-                lambda rg: _fetch_chunk(sport, league, rg[0], rg[1]), chunks
+                lambda rg: _fetch_chunk(sport, league, rg[0], rg[1], extra_params),
+                chunks,
             ):
                 raw_events.extend(evs)
 
@@ -191,7 +199,10 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
     # "Men's College World Series"). Drop anything that doesn't match.
     note_contains = source_args.get("note_contains")
     days_behind = source_args.get("days_behind", 2)
-    raw = _fetch_range(sport, league, days_ahead, days_behind)
+    # ESPN "groups" id (a division/conference filter). College football
+    # defaults to FBS only; see leagues.py for the value that covers FCS too.
+    extra_params = {"groups": str(source_args["groups"])} if source_args.get("groups") else None
+    raw = _fetch_range(sport, league, days_ahead, days_behind, extra_params)
     out: list[Event] = []
     for e in raw:
         comps = e.get("competitions") or []

@@ -1098,6 +1098,11 @@
     const link = document.getElementById('popover-link');
     if (ep.url) { link.href = ep.url; link.style.display = ''; }
     else { link.style.display = 'none'; }
+    // Kalshi: the game's own market when the refresh matched one, else the
+    // league listing; absent for leagues Kalshi doesn't cover.
+    const kalshi = document.getElementById('popover-kalshi');
+    if (ep.kalshiUrl) { kalshi.href = ep.kalshiUrl; kalshi.style.display = ''; }
+    else { kalshi.style.display = 'none'; }
 
     popover.classList.remove('hidden');
     const anchor = anchorEl.getBoundingClientRect();

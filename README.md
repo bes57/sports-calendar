@@ -48,6 +48,7 @@ Edit `.env` to enable the digest and tune behavior. The most important keys:
 | `FETCH_DAYS_AHEAD` | How far ahead to pull events (default 180) |
 | `FETCH_DAYS_BEHIND` | How far into the past to keep events, so you can scroll the calendar backwards (default 90) |
 | `REFRESH_INTERVAL_MIN` | How often to auto-refresh (default 30 min) |
+| `KALSHI_LINKS` | Look up each game's [Kalshi](https://kalshi.com) market on refresh and link it from the popover (default `true`) |
 
 If no email provider is configured, `POST /api/digest/send` writes the rendered
 digest to `data/last_digest.html` so you can still preview it.
@@ -59,7 +60,9 @@ digest to `data/last_digest.html` so you can still preview it.
 | MLB, NBA, WNBA, NHL, IPL | ESPN scoreboard | `site.api.espn.com/apis/site/v2/sports/...` |
 | F1 | ESPN scoreboard, split into per-session events (FP1/FP2/FP3/Quali/Race) | same as above |
 | UFC, MMA (PFL) | ESPN scoreboard, split into per-segment events (early prelims/prelims/main card) | same as above |
+| NCAAF | ESPN scoreboard with `groups=90` (all of Division I — the default is FBS only) | same as above |
 | Valorant | [vlrggapi](https://vlrggapi.vercel.app) (community vlr.gg scraper) | `vlrggapi.vercel.app/match?q=upcoming` |
+| Kalshi links | Kalshi public API, matched per game by date + team abbreviations (see `kalshi.py`) | `api.elections.kalshi.com/trade-api/v2/events?series_ticker=…` |
 
 All sources are public, no API keys required.
 
@@ -102,6 +105,7 @@ sports-calendar/
 ├── leagues.py          league registry (id, color, source)
 ├── db.py               SQLite schema + helpers
 ├── refresh.py          fetches all leagues and upserts to DB
+├── kalshi.py           matches events to Kalshi markets, stores the link
 ├── digest.py           digest formatter + email/SMS senders
 ├── scheduler.py        APScheduler — periodic refresh + daily digest
 ├── sources/

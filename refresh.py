@@ -10,6 +10,7 @@ from typing import Callable
 from db import init_db, upsert_events, record_refresh, purge_old, prune_league_to
 from leagues import LEAGUES, by_id
 from sources import get_fetcher
+import kalshi
 
 
 def refresh_league(league_id: str, days_ahead: int, days_behind: int = 90) -> tuple[int, str]:
@@ -31,12 +32,20 @@ def refresh_league(league_id: str, days_ahead: int, days_behind: int = 90) -> tu
         # the off-season window.
         effective_days = league.fetch_days_ahead or days_ahead
         events = fetcher(args, effective_days)
+        # Attach Kalshi market links (extra["kalshi_url"]) before the rows
+        # land. Best-effort: a Kalshi outage just means no links this pass.
+        try:
+            linked = kalshi.annotate(league.id, events)
+        except Exception:
+            linked = 0
         n = upsert_events(events)
         # Drop DB rows for this league whose source_id is no longer in the
         # fetcher's output. Without this, source-side changes (e.g. a stricter
         # filter, a cancelled/relocated game) leave stale rows on the calendar.
         purged = prune_league_to(league.id, {e.source_id for e in events})
         msg = f"{n} events"
+        if linked:
+            msg += f", {linked} with Kalshi links"
         if purged:
             msg += f" ({purged} pruned)"
         record_refresh(league.id, True, msg)
