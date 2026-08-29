@@ -77,7 +77,10 @@ def refresh_all(
     total = 0
     total_leagues = len(LEAGUES)
     completed = 0
-    max_workers = max(1, int(os.getenv("REFRESH_MAX_WORKERS", "8")))
+    # Leagues in flight at once. Each ESPN league also fans out over date
+    # chunks (ESPN_CHUNK_WORKERS), so 4×3 = 12 concurrent ESPN requests —
+    # 8×6 = 48 got the deploy host rate-limited.
+    max_workers = max(1, int(os.getenv("REFRESH_MAX_WORKERS", "4")))
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {

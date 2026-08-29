@@ -17,6 +17,8 @@ Parser variants exported:
 from __future__ import annotations
 
 import os
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
@@ -28,13 +30,40 @@ from timeutil import to_utc_iso
 BASE = "https://site.api.espn.com/apis/site/v2/sports"
 TIMEOUT = httpx.Timeout(15.0, connect=10.0)
 
+# ESPN's edge rate-limits a host that bursts at it with a flat 403 (seen
+# 2026-08-29 on Railway after a run of redeploys, each of which re-fetched
+# every league from an empty DB). Once we've been told off, keep quiet for a
+# while instead of having every remaining league and chunk pile on — that
+# only prolongs the block. The refresh scheduler tries again next cycle.
+_BLOCK_STATUSES = {403, 429}
+_BLOCK_COOLDOWN_S = 15 * 60
+_blocked_until = 0.0
+_block_lock = threading.Lock()
+
+
+class EspnBlocked(RuntimeError):
+    pass
+
+
+def _check_block() -> None:
+    if time.time() < _blocked_until:
+        remaining = int((_blocked_until - time.time()) // 60) + 1
+        raise EspnBlocked(f"ESPN is rate-limiting this host (403); retrying in ~{remaining} min")
+
+
+def _note_block(status: int) -> None:
+    global _blocked_until
+    with _block_lock:
+        _blocked_until = max(_blocked_until, time.time() + _BLOCK_COOLDOWN_S)
+
 
 def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date,
                  extra_params: dict | None = None) -> list[dict]:
     """Fetch one ?dates=START-END scoreboard chunk. Each call uses its own
     httpx.Client so chunks can be fetched in parallel (Client isn't safe to
     share across threads). A 404 means "no games in this window" — not an
-    error — so we return [] for it."""
+    error — so we return [] for it. A 403/429 trips the block above; one
+    polite retry first, in case it was a momentary limit."""
     url = f"{BASE}/{sport}/{league}/scoreboard"
     params = {
         "dates": f"{c_start.strftime('%Y%m%d')}-{c_end.strftime('%Y%m%d')}",
@@ -42,16 +71,27 @@ def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date,
         **(extra_params or {}),
     }
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
-        r = client.get(url, params=params)
-        if r.status_code == 404:
-            return []
-        r.raise_for_status()
-        return r.json().get("events", []) or []
+        for attempt in (0, 1):
+            _check_block()
+            r = client.get(url, params=params)
+            if r.status_code == 404:
+                return []
+            if r.status_code in _BLOCK_STATUSES:
+                if attempt == 0:
+                    time.sleep(3)
+                    continue
+                _note_block(r.status_code)
+                _check_block()
+            r.raise_for_status()
+            return r.json().get("events", []) or []
+    return []
 
 
 def _chunk_workers() -> int:
-    """Max concurrent date-chunk requests within a single league fetch."""
-    return max(1, int(os.getenv("ESPN_CHUNK_WORKERS", "6")))
+    """Max concurrent date-chunk requests within a single league fetch.
+    Kept modest: with refresh.py's league pool on top, the product of the
+    two is how hard we hit ESPN at once, and 6×8 got us blocked."""
+    return max(1, int(os.getenv("ESPN_CHUNK_WORKERS", "3")))
 
 
 def _multi_workers() -> int:
@@ -89,9 +129,13 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2,
         with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
             years = {today.year, end.year}  # next year too if window crosses Jan 1
             for y in years:
+                _check_block()
                 url = f"{BASE}/{sport}/{league}/scoreboard"
                 r = client.get(url, params={"dates": str(y), "limit": "500",
                                             **(extra_params or {})})
+                if r.status_code in _BLOCK_STATUSES:
+                    _note_block(r.status_code)
+                    _check_block()
                 r.raise_for_status()
                 data = r.json()
                 raw_events.extend(data.get("events", []) or [])
