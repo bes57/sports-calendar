@@ -1130,13 +1130,28 @@
     row.style.display = value ? '' : 'none';
   }
   document.getElementById('popover-close').addEventListener('click', () => popover.classList.add('hidden'));
-  // "Both": open Kalshi by script inside the click, then let the anchor's own
+  // Kalshi is installed as a Chrome app on some machines, and Chrome hands
+  // every NEW-TAB navigation into an installed app's scope — a target=_blank
+  // link or window.open(url) — to that app instead of a browser tab. A
+  // same-tab navigation is never captured, so open an empty tab first and
+  // then point it at Kalshi. Runs inside the click so it isn't popup-blocked.
+  function openInTab(url) {
+    const w = window.open('', '_blank');
+    if (!w) return;  // popup blocked — nothing more we can do
+    try { w.opener = null; } catch (e) { /* cross-origin quirks; harmless */ }
+    w.location.href = url;
+  }
+  document.getElementById('popover-kalshi').addEventListener('click', (e) => {
+    e.preventDefault();
+    openInTab(e.currentTarget.href);
+  });
+  // "Both": Kalshi via the empty-tab trick, then let the anchor's own
   // target=_blank open the source. Ordering matters — the anchor navigation
   // is never popup-blocked, so if a browser only allows one new tab per
   // click the source still opens and only Kalshi is blocked.
   document.getElementById('popover-both').addEventListener('click', (e) => {
     const kalshiUrl = e.currentTarget.dataset.kalshi;
-    if (kalshiUrl) window.open(kalshiUrl, '_blank', 'noopener');
+    if (kalshiUrl) openInTab(kalshiUrl);
   });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
