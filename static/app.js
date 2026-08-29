@@ -1176,12 +1176,23 @@
     const kalshiUrl = e.currentTarget.dataset.kalshi;
     openInTab(sourceUrl);
     if (kalshiUrl && !openInTab(kalshiUrl)) {
-      popoverHint.textContent =
-        'Your browser blocked the second tab. Click the blocked pop-up icon ' +
-        'in the address bar and choose "Always allow" for this site — then ' +
-        'Both opens both.';
+      // Second tab blocked. Offer it on the next click (a new activation),
+      // and say how to make Both a true single click.
+      popoverHint.innerHTML =
+        '<a href="#" id="popover-hint-open" class="popover-link">Open Kalshi too &rarr;</a>' +
+        '<span class="popover-hint-why">Your browser allows one new tab per click. ' +
+        'For both at once, click the blocked-pop-up icon in the address bar and ' +
+        'choose “Always allow” for this site.</span>';
+      popoverHint.dataset.kalshi = kalshiUrl;
       popoverHint.hidden = false;
     }
+  });
+  popoverHint.addEventListener('click', (e) => {
+    const open = e.target.closest('#popover-hint-open');
+    if (!open) return;
+    e.preventDefault();
+    openInTab(popoverHint.dataset.kalshi);
+    popoverHint.hidden = true;
   });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
