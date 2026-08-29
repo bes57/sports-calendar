@@ -1163,36 +1163,24 @@
     e.preventDefault();
     openInTab(e.currentTarget.href);
   });
-  // "Both": opening a new tab CONSUMES the click's user activation (HTML
-  // spec, "rules for choosing a navigable"), so with the popup blocker on
-  // a browser opens exactly one tab per click and blocks the second. Open
-  // the source first, then Kalshi; when Kalshi is blocked, say so and point
-  // at the one-time "always allow pop-ups from this site" switch, after
-  // which both open every time.
+  // "Both": a click carries ONE user activation and every way of opening a
+  // new tab consumes it — window.open / target=_blank in the browser
+  // process (RenderFrameHostImpl::CreateNewWindow) and even modifier-click
+  // navigations in the renderer (FrameLoader::StartNavigation). Only
+  // mousedown grants activation, so a page gets one new tab per click
+  // unless the site's pop-up setting is "Allow". Verified against Chromium
+  // source 2026-08-29. So:
+  //   1. Kalshi in a new tab (must be a new tab — see openInTab).
+  //   2. Source in a second new tab if the browser lets us (pop-ups
+  //      allowed for this site); otherwise in THIS tab, so both pages are
+  //      open from the one click and Back returns to the calendar.
   const popoverHint = document.getElementById('popover-hint');
   document.getElementById('popover-both').addEventListener('click', (e) => {
     e.preventDefault();
     const sourceUrl = e.currentTarget.href;
     const kalshiUrl = e.currentTarget.dataset.kalshi;
-    openInTab(sourceUrl);
-    if (kalshiUrl && !openInTab(kalshiUrl)) {
-      // Second tab blocked. Offer it on the next click (a new activation),
-      // and say how to make Both a true single click.
-      popoverHint.innerHTML =
-        '<a href="#" id="popover-hint-open" class="popover-link">Open Kalshi too &rarr;</a>' +
-        '<span class="popover-hint-why">Your browser allows one new tab per click. ' +
-        'For both at once, click the blocked-pop-up icon in the address bar and ' +
-        'choose “Always allow” for this site.</span>';
-      popoverHint.dataset.kalshi = kalshiUrl;
-      popoverHint.hidden = false;
-    }
-  });
-  popoverHint.addEventListener('click', (e) => {
-    const open = e.target.closest('#popover-hint-open');
-    if (!open) return;
-    e.preventDefault();
-    openInTab(popoverHint.dataset.kalshi);
-    popoverHint.hidden = true;
+    if (kalshiUrl) openInTab(kalshiUrl);
+    if (!openInTab(sourceUrl)) window.location.assign(sourceUrl);
   });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
