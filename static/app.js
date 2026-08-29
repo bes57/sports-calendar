@@ -1172,15 +1172,30 @@
   // source 2026-08-29. So:
   //   1. Kalshi in a new tab (must be a new tab — see openInTab).
   //   2. Source in a second new tab if the browser lets us (pop-ups
-  //      allowed for this site); otherwise in THIS tab, so both pages are
-  //      open from the one click and Back returns to the calendar.
+  //      allowed for this site). If it's blocked, don't decide for the
+  //      user: offer the source in THIS tab (Back returns here), and point
+  //      at the blocked-pop-up icon Chrome has just put in the address bar,
+  //      where "Always allow" makes Both two new tabs from then on.
   const popoverHint = document.getElementById('popover-hint');
   document.getElementById('popover-both').addEventListener('click', (e) => {
     e.preventDefault();
     const sourceUrl = e.currentTarget.href;
     const kalshiUrl = e.currentTarget.dataset.kalshi;
     if (kalshiUrl) openInTab(kalshiUrl);
-    if (!openInTab(sourceUrl)) window.location.assign(sourceUrl);
+    if (openInTab(sourceUrl)) return;
+    popoverHint.innerHTML =
+      '<a href="#" id="popover-hint-open" class="popover-link">Open Source in this tab &rarr;</a>' +
+      '<span class="popover-hint-why">Chrome blocked the second tab — it allows one new tab ' +
+      'per click. Back brings K-Cal back. To get two new tabs and keep K-Cal open: click the ' +
+      'blocked-pop-up icon at the right end of the address bar and choose “Always allow”.</span>';
+    popoverHint.dataset.source = sourceUrl;
+    popoverHint.hidden = false;
+  });
+  popoverHint.addEventListener('click', (e) => {
+    const open = e.target.closest('#popover-hint-open');
+    if (!open) return;
+    e.preventDefault();
+    window.location.assign(popoverHint.dataset.source);
   });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
