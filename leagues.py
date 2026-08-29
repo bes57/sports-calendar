@@ -109,7 +109,9 @@ LEAGUES: list[League] = [
     ),
     League(
         id="ufc", name="UFC", full_name="Ultimate Fighting Championship",
-        color="#7F1D1D",  # maroon
+        color="#4D7C0F",  # dark olive — the old maroon was near-identical to
+                          # NCAAF red-800 (ΔE 13) in a Saturday column; this
+                          # is the hue with no other fall-weekend league in it
         source="espn_mma", source_args={"sport": "mma", "league": "ufc"},
         duration_hours=3.0,  # applies to the last segment of the night; the
                              # earlier ones end when the next segment starts
