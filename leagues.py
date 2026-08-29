@@ -32,7 +32,13 @@ LEAGUES: list[League] = [
     League(
         id="mlb", name="MLB", full_name="Major League Baseball",
         color="#1E40AF",  # deep blue
-        source="espn", source_args={"sport": "baseball", "league": "mlb"},
+        source="espn", source_args={
+            "sport": "baseball",
+            "league": "mlb",
+            # Schedule from ESPN, but link each game to MLB.com Gameday
+            # (sources/mlb_gameday.py); ESPN's link is kept in extra.espn_url.
+            "gameday_links": True,
+        },
         duration_hours=3.0,
         group="Baseball",
     ),

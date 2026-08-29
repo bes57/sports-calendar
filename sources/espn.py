@@ -290,6 +290,12 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
             },
             all_day=multi_day,
         ))
+    if source_args.get("gameday_links"):
+        try:
+            from sources import mlb_gameday
+            mlb_gameday.annotate(out)
+        except Exception:
+            pass  # ESPN links stay
     return out
 
 

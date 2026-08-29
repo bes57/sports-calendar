@@ -1170,32 +1170,46 @@
   // mousedown grants activation, so a page gets one new tab per click
   // unless the site's pop-up setting is "Allow". Verified against Chromium
   // source 2026-08-29. So:
-  //   1. Kalshi in a new tab (must be a new tab — see openInTab).
-  //   2. Source in a second new tab if the browser lets us (pop-ups
-  //      allowed for this site). If it's blocked, don't decide for the
-  //      user: offer the source in THIS tab (Back returns here), and point
-  //      at the blocked-pop-up icon Chrome has just put in the address bar,
-  //      where "Always allow" makes Both two new tabs from then on.
+  // Tab order is Kalshi on the left, Source on the right, whichever way the
+  // browser lets us open them. Chrome inserts a new tab right after the
+  // active one, so two new tabs come out in opening order:
+  //   allowed: [K-Cal][Kalshi][Source]  — open Kalshi first, then Source.
+  //   blocked: only one new tab — give it the Source, and offer Kalshi in
+  //            THIS tab (a same-tab navigation, never captured by the
+  //            installed app): [Kalshi][Source]. Back brings K-Cal back.
+  // Both tabs are opened blank first, then pointed, so we know which case
+  // we're in before deciding what goes where.
   const popoverHint = document.getElementById('popover-hint');
   document.getElementById('popover-both').addEventListener('click', (e) => {
     e.preventDefault();
     const sourceUrl = e.currentTarget.href;
     const kalshiUrl = e.currentTarget.dataset.kalshi;
-    if (kalshiUrl) openInTab(kalshiUrl);
-    if (openInTab(sourceUrl)) return;
+    const first = window.open('', '_blank');
+    if (!first) return;  // even one tab blocked — nothing we can do
+    const second = window.open('', '_blank');
+    if (second) {
+      point(first, kalshiUrl);
+      point(second, sourceUrl);
+      return;
+    }
+    point(first, sourceUrl);
     popoverHint.innerHTML =
-      '<a href="#" id="popover-hint-open" class="popover-link">Open Source in this tab &rarr;</a>' +
+      '<a href="#" id="popover-hint-open" class="popover-link">Open Kalshi in this tab &rarr;</a>' +
       '<span class="popover-hint-why">Chrome blocked the second tab — it allows one new tab ' +
       'per click. Back brings K-Cal back. To get two new tabs and keep K-Cal open: click the ' +
       'blocked-pop-up icon at the right end of the address bar and choose “Always allow”.</span>';
-    popoverHint.dataset.source = sourceUrl;
+    popoverHint.dataset.kalshi = kalshiUrl;
     popoverHint.hidden = false;
   });
+  function point(w, url) {
+    try { w.opener = null; } catch (e) { /* harmless */ }
+    w.location.href = url;
+  }
   popoverHint.addEventListener('click', (e) => {
     const open = e.target.closest('#popover-hint-open');
     if (!open) return;
     e.preventDefault();
-    window.location.assign(popoverHint.dataset.source);
+    window.location.assign(popoverHint.dataset.kalshi);
   });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
