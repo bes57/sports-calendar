@@ -435,11 +435,18 @@ def _competitors(comp: dict) -> list[dict]:
     for c in comp.get("competitors") or []:
         team = c.get("team") or {}
         athlete = c.get("athlete") or {}
-        out.append({
+        entry = {
             "name": team.get("displayName") or athlete.get("displayName") or c.get("displayName"),
             "abbr": team.get("abbreviation") or athlete.get("shortName"),
             "home_away": c.get("homeAway"),
-        })
+        }
+        # College feeds carry the AP/coaches poll position as curatedRank
+        # (99 = unranked). Kept only when ranked, so the sidebar's "ranked
+        # NCAA games" filter can test `competitors.some(c => c.rank)`.
+        rank = (c.get("curatedRank") or {}).get("current")
+        if isinstance(rank, int) and 1 <= rank <= 25:
+            entry["rank"] = rank
+        out.append(entry)
     return out
 
 

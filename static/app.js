@@ -21,6 +21,14 @@
     const competitors = ep.competitors || [];
     return competitors.some(c => favs.includes(c.abbr));
   }
+  // "Only ranked NCAA games": college events survive only if at least one
+  // side is in the top 25 (competitor.rank, from ESPN's curatedRank). Every
+  // other league passes through untouched.
+  const NCAA_LEAGUES = new Set(['ncaaf', 'ncaam', 'ncaaw']);
+  function passesRankedFilter(ep) {
+    if (!NCAA_LEAGUES.has(ep.league)) return true;
+    return (ep.competitors || []).some(c => c.rank);
+  }
   // On a hard refresh / reload, wipe the saved view + league filter so the
   // app opens with its standard defaults: 3 Days, all leagues selected.
   // Timezone persists since that's a stable user pref.
@@ -512,6 +520,10 @@
         if (favOnly && favOnly.checked) {
           data = data.filter(e => isFavoriteTeamEvent(e.extendedProps || {}));
         }
+        const rankedOnly = document.getElementById('ranked-only-filter');
+        if (rankedOnly && rankedOnly.checked) {
+          data = data.filter(e => passesRankedFilter(e.extendedProps || {}));
+        }
         success(data);
       } catch (e) { failure(e); }
     },
@@ -948,6 +960,10 @@
   const favOnlyFilter = document.getElementById('fav-only-filter');
   if (favOnlyFilter) {
     favOnlyFilter.addEventListener('change', () => calendar.refetchEvents());
+  }
+  const rankedOnlyFilter = document.getElementById('ranked-only-filter');
+  if (rankedOnlyFilter) {
+    rankedOnlyFilter.addEventListener('change', () => calendar.refetchEvents());
   }
 
   // Mobile sidebar drawer toggle. Hamburger button is only rendered on the
