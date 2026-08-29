@@ -776,6 +776,7 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   font-size: 13px;
 }
 .popover-link:hover { text-decoration: underline; }
+.popover-hint { margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
 
 /* --- Settings page --- */
 .settings-wrap { padding: 28px; max-width: 920px; margin: 0 auto; }

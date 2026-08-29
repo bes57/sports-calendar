@@ -1095,6 +1095,7 @@
     setRow('popover-note-row', ep.note);
     document.getElementById('popover-note').textContent = ep.note || '';
 
+    document.getElementById('popover-hint').hidden = true;
     const link = document.getElementById('popover-link');
     if (ep.url) { link.href = ep.url; link.style.display = ''; }
     else { link.style.display = 'none'; }
@@ -1137,21 +1138,34 @@
   // then point it at Kalshi. Runs inside the click so it isn't popup-blocked.
   function openInTab(url) {
     const w = window.open('', '_blank');
-    if (!w) return;  // popup blocked — nothing more we can do
+    if (!w) return false;  // popup blocked
     try { w.opener = null; } catch (e) { /* cross-origin quirks; harmless */ }
     w.location.href = url;
+    return true;
   }
   document.getElementById('popover-kalshi').addEventListener('click', (e) => {
     e.preventDefault();
     openInTab(e.currentTarget.href);
   });
-  // "Both": Kalshi via the empty-tab trick, then let the anchor's own
-  // target=_blank open the source. Ordering matters — the anchor navigation
-  // is never popup-blocked, so if a browser only allows one new tab per
-  // click the source still opens and only Kalshi is blocked.
+  // "Both": opening a new tab CONSUMES the click's user activation (HTML
+  // spec, "rules for choosing a navigable"), so with the popup blocker on
+  // a browser opens exactly one tab per click and blocks the second. Open
+  // the source first, then Kalshi; when Kalshi is blocked, say so and point
+  // at the one-time "always allow pop-ups from this site" switch, after
+  // which both open every time.
+  const popoverHint = document.getElementById('popover-hint');
   document.getElementById('popover-both').addEventListener('click', (e) => {
+    e.preventDefault();
+    const sourceUrl = e.currentTarget.href;
     const kalshiUrl = e.currentTarget.dataset.kalshi;
-    if (kalshiUrl) openInTab(kalshiUrl);
+    openInTab(sourceUrl);
+    if (kalshiUrl && !openInTab(kalshiUrl)) {
+      popoverHint.textContent =
+        'Your browser blocked the second tab. Click the blocked pop-up icon ' +
+        'in the address bar and choose "Always allow" for this site — then ' +
+        'Both opens both.';
+      popoverHint.hidden = false;
+    }
   });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
