@@ -1103,6 +1103,13 @@
     const kalshi = document.getElementById('popover-kalshi');
     if (ep.kalshiUrl) { kalshi.href = ep.kalshiUrl; kalshi.style.display = ''; }
     else { kalshi.style.display = 'none'; }
+    // "Both" only makes sense when there are two links to open.
+    const both = document.getElementById('popover-both');
+    if (ep.url && ep.kalshiUrl) {
+      both.href = ep.url;
+      both.dataset.kalshi = ep.kalshiUrl;
+      both.style.display = '';
+    } else { both.style.display = 'none'; }
 
     popover.classList.remove('hidden');
     const anchor = anchorEl.getBoundingClientRect();
@@ -1123,6 +1130,14 @@
     row.style.display = value ? '' : 'none';
   }
   document.getElementById('popover-close').addEventListener('click', () => popover.classList.add('hidden'));
+  // "Both": open Kalshi by script inside the click, then let the anchor's own
+  // target=_blank open the source. Ordering matters — the anchor navigation
+  // is never popup-blocked, so if a browser only allows one new tab per
+  // click the source still opens and only Kalshi is blocked.
+  document.getElementById('popover-both').addEventListener('click', (e) => {
+    const kalshiUrl = e.currentTarget.dataset.kalshi;
+    if (kalshiUrl) window.open(kalshiUrl, '_blank', 'noopener');
+  });
   document.addEventListener('click', (e) => {
     if (popover.classList.contains('hidden')) return;
     if (popover.contains(e.target)) return;
