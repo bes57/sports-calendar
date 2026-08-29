@@ -109,9 +109,7 @@ LEAGUES: list[League] = [
     ),
     League(
         id="ufc", name="UFC", full_name="Ultimate Fighting Championship",
-        color="#4D7C0F",  # dark olive — the old maroon was near-identical to
-                          # NCAAF red-800 (ΔE 13) in a Saturday column; this
-                          # is the hue with no other fall-weekend league in it
+        color="#7F1D1D",  # maroon — a dark red, far enough from NBA's bright red
         source="espn_mma", source_args={"sport": "mma", "league": "ufc"},
         duration_hours=3.0,  # applies to the last segment of the night; the
                              # earlier ones end when the next segment starts
@@ -132,14 +130,16 @@ LEAGUES: list[League] = [
     ),
     League(
         id="nfl", name="NFL", full_name="National Football League",
-        color="#1E293B",  # slate-800 — distinct from MLB blue & NCAAF red
+        color="#1E293B",  # slate-800 — distinct from MLB blue & NCAAF green
         source="espn", source_args={"sport": "football", "league": "nfl"},
         duration_hours=3.5,
         group="Football",
     ),
     League(
         id="ncaaf", name="NCAAF", full_name="NCAA Football",
-        color="#991B1B",  # red-800
+        color="#4D7C0F",  # dark green (lime-700). Red-800 was near-identical
+                          # to UFC maroon in a Saturday column; this is the
+                          # green farthest from IPL/ODI/golf/MLS.
         source="espn", source_args={
             "sport": "football",
             "league": "college-football",
