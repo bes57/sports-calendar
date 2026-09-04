@@ -54,6 +54,7 @@ SERIES: dict[str, tuple[str, str, str]] = {
     "mls":              ("KXMLSGAME",          "major-league-soccer-game",          "teams"),
     "epl":              ("KXEPLGAME",          "english-premier-league-game",       "teams"),
     "ucl":              ("KXUCLGAME",          "uefa-champions-league-game",        "teams"),
+    "laliga":           ("KXLALIGAGAME",       "la-liga-game",                      "teams"),
     "wc":               ("KXWCGAME",           "world-cup-game",                    "teams"),
     "ipl":              ("KXIPLGAME",          "indian-premier-league-cricket-game", "teams"),
     # KXODIMATCH / KXT20MATCH are the domestic (county, state) series;
@@ -79,13 +80,14 @@ _ALIASES: dict[str, tuple[str, ...]] = {
     "NJ": ("NJD",), "SJ": ("SJS",), "TB": ("TBL",), "MTL": ("MON",),
     "VGK": ("VEG",), "PHX": ("PHO",),
     "SL": ("SRI",),                                      # cricket
-    # Soccer (EPL / UCL). ESPN's MUN is Bayern Munich; Kalshi's MUN is
+    # Soccer (EPL / UCL / La Liga). ESPN's MUN is Bayern Munich; Kalshi's MUN is
     # Manchester United (ESPN: MAN), so both need spelling out.
     "LIV": ("LFC",), "BHA": ("BRI",), "CHE": ("CFC",), "MNC": ("MCI",),
     "MAN": ("MUN",), "MUN": ("BMU",),
     "DOR": ("BVB",), "LAS": ("ASK",), "BET": ("RBB",), "SLB": ("SLO",),
     "SCP": ("SPO",), "SHK": ("SHA",), "BODO": ("BOG",), "SAB": ("SBH",),
     "SLP": ("SLA",),
+    "RAY": ("RVC",), "RAC": ("SAN",), "VAL": ("VCF",), "CEL": ("RCC",),  # La Liga
     "NCSU": ("NCST",),                                   # NC State
 }
 
@@ -94,8 +96,11 @@ _ALIASES: dict[str, tuple[str, ...]] = {
 # paired the next game of an MLB series with yesterday's market once that
 # was the only one open.) Overseas fixtures are the exception: Kalshi may
 # date them locally, so these leagues fall back to the neighbouring days
-# when nothing matches on the day itself.
-_LOOSE_DATE_LEAGUES = {"ipl", "odi", "t20i", "wc"}
+# when nothing matches on the day itself. La Liga is there because Kalshi
+# files a whole matchday under one nominal date (all of Sep 12-14 2026 as
+# SEP13) when it opens the markets before kickoff times are confirmed. Safe
+# for soccer: two clubs never meet on consecutive days.
+_LOOSE_DATE_LEAGUES = {"ipl", "odi", "t20i", "wc", "laliga"}
 
 _TICKER_RE = re.compile(r"^[A-Z0-9]+-(\d{2})([A-Z]{3})(\d{2})(\d{4})?(.*)$")
 _GAME_SUFFIX_RE = re.compile(r"^(.*?)(G\d)$")

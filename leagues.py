@@ -277,6 +277,15 @@ LEAGUES: list[League] = [
         group="Soccer",
     ),
     League(
+        id="laliga", name="La Liga", full_name="Spanish La Liga",
+        color="#C2410C",  # orange-700 rust — a shade darker than WNBA orange,
+                          # redder than CWS amber (and CWS is June-only, when
+                          # La Liga is off)
+        source="espn", source_args={"sport": "soccer", "league": "esp.1"},
+        duration_hours=2.0,
+        group="Soccer",
+    ),
+    League(
         id="wc", name="World Cup", full_name="FIFA World Cup",
         color="#CA8A04",  # gold — trophy theme; distinct from MMA #A16207
         source="espn", source_args={"sport": "soccer", "league": "fifa.world"},
