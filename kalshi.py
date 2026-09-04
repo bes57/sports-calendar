@@ -52,6 +52,8 @@ SERIES: dict[str, tuple[str, str, str]] = {
     "nfl":              ("KXNFLGAME",          "professional-football-game",        "teams"),
     "ncaaf":            ("KXNCAAFGAME",        "college-football-game",             "teams"),
     "mls":              ("KXMLSGAME",          "major-league-soccer-game",          "teams"),
+    "epl":              ("KXEPLGAME",          "english-premier-league-game",       "teams"),
+    "ucl":              ("KXUCLGAME",          "uefa-champions-league-game",        "teams"),
     "wc":               ("KXWCGAME",           "world-cup-game",                    "teams"),
     "ipl":              ("KXIPLGAME",          "indian-premier-league-cricket-game", "teams"),
     # KXODIMATCH / KXT20MATCH are the domestic (county, state) series;
@@ -77,6 +79,13 @@ _ALIASES: dict[str, tuple[str, ...]] = {
     "NJ": ("NJD",), "SJ": ("SJS",), "TB": ("TBL",), "MTL": ("MON",),
     "VGK": ("VEG",), "PHX": ("PHO",),
     "SL": ("SRI",),                                      # cricket
+    # Soccer (EPL / UCL). ESPN's MUN is Bayern Munich; Kalshi's MUN is
+    # Manchester United (ESPN: MAN), so both need spelling out.
+    "LIV": ("LFC",), "BHA": ("BRI",), "CHE": ("CFC",), "MNC": ("MCI",),
+    "MAN": ("MUN",), "MUN": ("BMU",),
+    "DOR": ("BVB",), "LAS": ("ASK",), "BET": ("RBB",), "SLB": ("SLO",),
+    "SCP": ("SPO",), "SHK": ("SHA",), "BODO": ("BOG",), "SAB": ("SBH",),
+    "SLP": ("SLA",),
     "NCSU": ("NCST",),                                   # NC State
 }
 

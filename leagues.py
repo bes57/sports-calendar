@@ -261,6 +261,22 @@ LEAGUES: list[League] = [
         group="Soccer",
     ),
     League(
+        id="epl", name="Premier League", full_name="English Premier League",
+        color="#581C87",  # purple-900 — the league's own purple, and far
+                          # darker than Valorant violet / NBA Draft fuchsia
+        source="espn", source_args={"sport": "soccer", "league": "eng.1"},
+        duration_hours=2.0,
+        group="Soccer",
+    ),
+    League(
+        id="ucl", name="Champions League", full_name="UEFA Champions League",
+        color="#0C4A6E",  # sky-900 navy — distinct from MLB blue-800 (more
+                          # cyan) and much darker than NHL sky / NCAAW cyan
+        source="espn", source_args={"sport": "soccer", "league": "uefa.champions"},
+        duration_hours=2.0,
+        group="Soccer",
+    ),
+    League(
         id="wc", name="World Cup", full_name="FIFA World Cup",
         color="#CA8A04",  # gold — trophy theme; distinct from MMA #A16207
         source="espn", source_args={"sport": "soccer", "league": "fifa.world"},
