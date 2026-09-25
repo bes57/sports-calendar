@@ -3,8 +3,9 @@
 ESPN exposes a public JSON scoreboard at:
     https://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/scoreboard
 
-It accepts an optional `?dates=YYYYMMDD-YYYYMMDD` range. We fetch in 7-day
-chunks because ESPN clamps single requests to ~10 days for most leagues.
+`?dates=` takes one calendar month (YYYYMM) or one day (YYYYMMDD); a league
+is fetched as the months touching its window, see _fetch_range for the
+details and the fallback for months ESPN truncates.
 
 Parser variants exported:
 - fetch_espn       : one calendar event per ESPN event. Used for most leagues.
@@ -57,17 +58,40 @@ def _note_block(status: int) -> None:
         _blocked_until = max(_blocked_until, time.time() + _BLOCK_COOLDOWN_S)
 
 
-def _fetch_chunk(sport: str, league: str, c_start: date, c_end: date,
+# ESPN dropped support for `?dates=YYYYMMDD-YYYYMMDD` ranges on 2026-09-25 —
+# every such request now 400s with "Failed to get events endpoint", which
+# took every ESPN-backed league's refresh down with it (the calendar kept
+# showing the Aug-29 schedule while a rescheduled doubleheader was being
+# played). What still works is one calendar month (`?dates=YYYYMM`) or one
+# day (`?dates=YYYYMMDD`), so a league is fetched as the ~10 months touching
+# its window instead of ~40 seven-day chunks.
+#
+# `limit` caps a month's events, and the largest value ESPN honours is 1000
+# — or 500 once `groups` is in the query. Anything higher makes it silently
+# answer with 25 events, as if no limit had been given, which is worse than
+# a 400. College basketball has more than 1000 games in each of Nov–Feb, so
+# a month that comes back at the cap is re-fetched one day at a time
+# (_fetch_range); a single day never gets near it.
+_MONTH_LIMIT = 1000
+_MONTH_LIMIT_WITH_GROUPS = 500
+
+
+def _limit(extra_params: dict | None) -> int:
+    return _MONTH_LIMIT_WITH_GROUPS if (extra_params or {}).get("groups") else _MONTH_LIMIT
+
+
+def _fetch_chunk(sport: str, league: str, dates: str,
                  extra_params: dict | None = None) -> list[dict]:
-    """Fetch one ?dates=START-END scoreboard chunk. Each call uses its own
-    httpx.Client so chunks can be fetched in parallel (Client isn't safe to
-    share across threads). A 404 means "no games in this window" — not an
-    error — so we return [] for it. A 403/429 trips the block above; one
-    polite retry first, in case it was a momentary limit."""
+    """Fetch one scoreboard chunk — `dates` is ESPN's key for a month
+    (YYYYMM) or a day (YYYYMMDD). Each call uses its own httpx.Client so
+    chunks can be fetched in parallel (Client isn't safe to share across
+    threads). A 404 means "no games in this window" — not an error — so we
+    return [] for it. A 403/429 trips the block above; one polite retry
+    first, in case it was a momentary limit."""
     url = f"{BASE}/{sport}/{league}/scoreboard"
     params = {
-        "dates": f"{c_start.strftime('%Y%m%d')}-{c_end.strftime('%Y%m%d')}",
-        "limit": "200",
+        "dates": dates,
+        "limit": str(_limit(extra_params)),
         **(extra_params or {}),
     }
     with httpx.Client(timeout=TIMEOUT, follow_redirects=True) as client:
@@ -106,9 +130,10 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2,
     `extra_params` are added to every scoreboard request — e.g. `groups` for
     college football, which ESPN otherwise limits to FBS.
 
-    Most leagues accept ?dates=YYYYMMDD-YYYYMMDD in 7-day chunks.
-    Cricket returns 404 on date ranges but accepts ?dates=YYYY for a full
-    season, which we then filter locally.
+    Most leagues are fetched one calendar month at a time (?dates=YYYYMM),
+    falling back to single days for a month ESPN truncates. Cricket only
+    answers ?dates=YYYY for a full season. Either way the result is wider
+    than the window, so it's filtered locally afterwards.
 
     `days_behind` controls how far into the past the window starts — must be
     >= refresh.py's purge_old grace period, or a just-finished game gets
@@ -140,24 +165,36 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2,
                 data = r.json()
                 raw_events.extend(data.get("events", []) or [])
     else:
-        # Build the 7-day windows up front, then fetch them in parallel.
-        # The chunks are independent, so this turns a ~26-request serial
-        # walk (180-day league) into a handful of concurrent waves.
-        # ESPN 404s for windows outside a league's season — _fetch_chunk
-        # treats that as "no games", not an error.
-        chunks: list[tuple[date, date]] = []
-        cursor = today
-        while cursor < end:
-            chunk_end = min(cursor + timedelta(days=7), end)
-            chunks.append((cursor, chunk_end))
-            cursor = chunk_end + timedelta(days=1)
-        workers = min(len(chunks), _chunk_workers()) or 1
+        # One request per month touching the window, fetched in parallel —
+        # the months are independent, so a 270-day window is a couple of
+        # concurrent waves rather than a serial walk. ESPN 404s for months
+        # outside a league's season; _fetch_chunk treats that as "no games".
+        months = _months(today, end)
+        workers = min(len(months), _chunk_workers()) or 1
+        limit = _limit(extra_params)
         with ThreadPoolExecutor(max_workers=workers) as ex:
-            for evs in ex.map(
-                lambda rg: _fetch_chunk(sport, league, rg[0], rg[1], extra_params),
-                chunks,
-            ):
-                raw_events.extend(evs)
+            by_month = dict(zip(months, ex.map(
+                lambda key: _fetch_chunk(sport, league, key, extra_params),
+                months,
+            )))
+        for evs in by_month.values():
+            raw_events.extend(evs)
+        # A month that came back at the cap was truncated (college
+        # basketball in season). Its days inside the window are fetched
+        # one by one; the dedupe below folds them onto the month's rows.
+        days = [
+            day
+            for key, evs in by_month.items() if len(evs) >= limit
+            for day in _days_in_month(key, today, end)
+        ]
+        if days:
+            workers = min(len(days), _chunk_workers()) or 1
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                for evs in ex.map(
+                    lambda key: _fetch_chunk(sport, league, key, extra_params),
+                    days,
+                ):
+                    raw_events.extend(evs)
 
     # Dedupe by ESPN event id (in case chunks overlap)
     seen = set()
@@ -168,7 +205,9 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2,
             seen.add(eid)
             out.append(e)
 
-    # For cricket (and as a general safety net) filter to our window locally
+    # Month and season chunks overshoot the window on both ends; trim to it
+    # so the first month's stale games aren't upserted only for purge_old
+    # to delete them again a moment later.
     today_iso = today.isoformat()
     end_iso = end.isoformat()
     filtered = []
@@ -180,7 +219,28 @@ def _fetch_range(sport: str, league: str, days_ahead: int, days_behind: int = 2,
             continue
         if today_iso <= day < end_iso:
             filtered.append(e)
-    return filtered if sport == "cricket" else out
+    return filtered
+
+
+def _months(start: date, end: date) -> list[str]:
+    """ESPN ?dates= keys (YYYYMM) for every month touching [start, end)."""
+    out: list[str] = []
+    last = end - timedelta(days=1)
+    y, m = start.year, start.month
+    while (y, m) <= (last.year, last.month):
+        out.append(f"{y:04d}{m:02d}")
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return out
+
+
+def _days_in_month(key: str, start: date, end: date) -> list[str]:
+    """ESPN ?dates= keys (YYYYMMDD) for the days of month `key` (YYYYMM)
+    that fall inside [start, end)."""
+    y, m = int(key[:4]), int(key[4:])
+    first = date(y, m, 1)
+    following = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+    lo, hi = max(first, start), min(following, end)
+    return [(lo + timedelta(days=i)).strftime("%Y%m%d") for i in range((hi - lo).days)]
 
 
 def _status(comp: dict) -> str:

@@ -106,7 +106,11 @@ def refresh_all(
     # fetchers use, so this doesn't undercut what refresh_league just kept.
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days_behind)).isoformat()
     purged = purge_old(cutoff)
-    return {"total": total, "purged": purged, "leagues": results}
+    # Per-league failures are trapped inside refresh_league (one dead source
+    # mustn't stop the rest), so list them here — otherwise a refresh where
+    # every ESPN league 400'd still looks like a success to the caller.
+    failed = sorted(lg for lg, r in results.items() if r["message"] != "ok")
+    return {"total": total, "purged": purged, "failed": failed, "leagues": results}
 
 
 if __name__ == "__main__":

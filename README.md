@@ -49,7 +49,7 @@ Edit `.env` to enable the digest and tune behavior. The most important keys:
 | `FETCH_DAYS_BEHIND` | How far into the past to keep events, so you can scroll the calendar backwards (default 90) |
 | `REFRESH_INTERVAL_MIN` | How often to auto-refresh (default 30 min) |
 | `KALSHI_LINKS` | Look up each game's [Kalshi](https://kalshi.com) market on refresh and link it from the popover (default `true`) |
-| `REFRESH_MAX_WORKERS` / `ESPN_CHUNK_WORKERS` | Leagues, and date-chunks per league, fetched concurrently (defaults 4 and 3). Their product is the burst ESPN sees; 8×6 got a host rate-limited (403), and a 403 now pauses ESPN fetches for 15 min |
+| `REFRESH_MAX_WORKERS` / `ESPN_CHUNK_WORKERS` | Leagues, and month-chunks per league, fetched concurrently (defaults 4 and 3). ESPN's scoreboard only answers for a month or a day (date ranges 400 since 2026-09-25); a month it truncates is re-fetched day by day. Their product is the burst ESPN sees; 8×6 got a host rate-limited (403), and a 403 now pauses ESPN fetches for 15 min |
 
 If no email provider is configured, `POST /api/digest/send` writes the rendered
 digest to `data/last_digest.html` so you can still preview it.

@@ -1040,9 +1040,17 @@
         es.close();
         refreshProgress.classList.remove('indeterminate');
         refreshBar.style.width = '100%';
-        refreshStatus.textContent = `Fetched ${d.total_events} events — reloading…`;
-        // Brief pause so the filled bar is visible, then cache-busting reload.
-        setTimeout(reloadCacheBusted, 400);
+        // A league whose source errored keeps its old rows, so the calendar
+        // can look refreshed while being days stale — name the failures
+        // (details are on the Settings page) instead of claiming success.
+        const failed = d.failed || [];
+        const failNote = failed.length
+          ? ` — ${failed.length} league${failed.length === 1 ? '' : 's'} failed (${failed.join(', ')}; see Settings)`
+          : '';
+        refreshStatus.textContent = `Fetched ${d.total_events} events${failNote} — reloading…`;
+        // Brief pause so the filled bar is visible (longer when there's a
+        // failure to read), then cache-busting reload.
+        setTimeout(reloadCacheBusted, failed.length ? 2500 : 400);
       } else if (d.type === 'error') {
         finished = true;
         es.close();

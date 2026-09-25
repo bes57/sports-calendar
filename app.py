@@ -345,7 +345,8 @@ async def api_refresh_stream(league: str | None = None):
                     {"type": "progress", "done": done, "total": total,
                      "league": lg, "count": n}
                 ))
-                emit({"type": "done", "total_events": result.get("total", 0)})
+                emit({"type": "done", "total_events": result.get("total", 0),
+                      "failed": result.get("failed", [])})
         except Exception as exc:  # surface failures to the client
             emit({"type": "error", "message": str(exc)[:300]})
 
