@@ -459,6 +459,43 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   pointer-events: none;
   z-index: 2;
 }
+/* Postseason tiles: a gold band across the top carrying the trophy. ::after
+   so it coexists with the favorite ring's ::before, and — same lesson as the
+   ring — no position:relative here; the tile is already FC's absolute box.
+   The tile's overflow:hidden + border-radius round the band's top corners,
+   and padding-top keeps the title (or the vertical letter stack on a busy
+   day) below it. On a skinny Week-view pill the trophy is mostly clipped
+   and what's left is a gold cap, which still reads at a glance. */
+.fc-timegrid-event.fc-event-playoff::after {
+  content: '\1F3C6';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  line-height: 14px;
+  font-size: 9px;
+  text-align: center;
+  background: #FBBF24;
+  color: #1F2937;
+  pointer-events: none;
+  z-index: 1;
+}
+.fc-timegrid-event.fc-event-playoff,
+body[data-view="threeDay"] .fc-timegrid-event.fc-event-playoff,
+body[data-view="timeGridDay"] .fc-timegrid-event.fc-event-playoff {
+  box-sizing: border-box;
+  padding-top: 14px;
+}
+/* Month rows are one line tall, so the band becomes a gold top edge and the
+   trophy moves inline ahead of the matchup. */
+.fc-daygrid-event.fc-event-playoff {
+  box-shadow: inset 0 3px 0 #FBBF24;
+  padding-top: 4px;
+}
+.fc-daygrid-event.fc-event-playoff .fc-event-title::before {
+  content: '\1F3C6\00A0';
+}
 /* Table rows can't take a ring the same way — an animated stripe on the
    left edge reads the same at a glance. No mask needed: it's meant to be a
    solid filled bar, not framing an empty middle. Rows are plenty wide, so

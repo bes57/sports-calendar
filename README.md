@@ -11,7 +11,8 @@ See [GOAL.md](./GOAL.md) for the full goal/scope.
 - **9 leagues live**: MLB, NBA, WNBA, NHL, UFC, MMA (PFL), F1, IPL, Valorant
 - **Calendar UI**: month / week / day / list views, color-coded per league,
   click-through popovers with venue, broadcast, and source link; playoff /
-  postseason games carry a 🏆 and name their round (ALDS Game 1, Round of 16…)
+  postseason tiles wear a gold 🏆 band and name their round (ALDS Game 1,
+  Round of 16…) in the popover and agenda
 - **League filter**: toggle any league on/off; choice persists in the browser
 - **Daily digest**: HTML email grouped by league with start times in your
   timezone, broadcast info, and links back to ESPN / vlr.gg

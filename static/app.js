@@ -563,6 +563,13 @@
       const isFav = isFavoriteTeamEvent(ep);
       info.el.classList.toggle('fc-event-favorite', isFav);
 
+      // Postseason games get a gold trophy band across the top of the tile
+      // (.fc-event-playoff in app.css) — a pseudo-element for the same
+      // reasons as the favorite ring above. Only on the segment that holds
+      // the start: an overnight game's after-midnight sliver would be
+      // nothing but band.
+      info.el.classList.toggle('fc-event-playoff', !!ep.playoff && info.isStart !== false);
+
       // Tooltip with full title (for narrow time-grid tiles)
       const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.playoff ? '\n\u{1F3C6} ' + ep.playoff : ''}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
       info.el.setAttribute('title', tip);

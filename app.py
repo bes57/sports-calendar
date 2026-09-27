@@ -39,7 +39,8 @@ BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="K-Cal")
 
-# Prefix for postseason games wherever a title is rendered as text.
+# Prefix for postseason games where a title is rendered as plain text
+# (team search); calendar tiles get a gold band instead (app.css).
 PLAYOFF_MARK = "\U0001F3C6"  # 🏆
 
 
@@ -169,13 +170,11 @@ async def api_events(
         full_title = r["title"]
         extra = r.get("extra") or {}
         short_title = extra.get("short_name") or full_title
-        # Postseason games (extra.playoff = the round, set by the fetcher)
-        # carry a trophy in the tile text — it's part of the title so the
-        # tile packer measures it like any other character — and the round
-        # itself rides along for the popover and agenda.
+        # Postseason games (extra.playoff = the round, set by the fetcher).
+        # The calendar draws the trophy band itself (.fc-event-playoff in
+        # app.css) so the tile title stays the bare matchup; the round rides
+        # along for the popover, agenda and tooltip.
         playoff = extra.get("playoff") or None
-        if playoff:
-            short_title = f"{PLAYOFF_MARK} {short_title}"
         all_day = bool(r.get("all_day"))
         start_iso = _normalize_iso(r["start_utc"])
         end_iso = _normalize_iso(r.get("end_utc"))
