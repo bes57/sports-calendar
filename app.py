@@ -39,6 +39,9 @@ BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="K-Cal")
 
+# Prefix for postseason games wherever a title is rendered as text.
+PLAYOFF_MARK = "\U0001F3C6"  # 🏆
+
 
 class _NoCacheStaticFiles(StaticFiles):
     """StaticFiles wrapper that forbids browser caching. Without this, a soft
@@ -166,6 +169,13 @@ async def api_events(
         full_title = r["title"]
         extra = r.get("extra") or {}
         short_title = extra.get("short_name") or full_title
+        # Postseason games (extra.playoff = the round, set by the fetcher)
+        # carry a trophy in the tile text — it's part of the title so the
+        # tile packer measures it like any other character — and the round
+        # itself rides along for the popover and agenda.
+        playoff = extra.get("playoff") or None
+        if playoff:
+            short_title = f"{PLAYOFF_MARK} {short_title}"
         all_day = bool(r.get("all_day"))
         start_iso = _normalize_iso(r["start_utc"])
         end_iso = _normalize_iso(r.get("end_utc"))
@@ -201,6 +211,7 @@ async def api_events(
                 # doesn't cover (golf, drafts …) and the popover hides it.
                 "kalshiUrl": extra.get("kalshi_url") or kalshi.series_url(r["league"]),
                 "status": r["status"],
+                "playoff": playoff,
                 "note": _league_note(r["league"]),
                 "competitors": extra.get("competitors") or [],
                 # MMA only: the segment's bouts, headliner last (see fetch_espn_mma)
@@ -278,7 +289,7 @@ async def api_team_search(q: str = Query(..., min_length=1)):
             "league": r["league"],
             "leagueName": lg.name if lg else r["league"],
             "color": lg.color if lg else "#6B7280",
-            "title": r["title"],
+            "title": (f"{PLAYOFF_MARK} " if extra.get("playoff") else "") + r["title"],
             "start": _normalize_iso(r["start_utc"]),
             "allDay": bool(r.get("all_day")),
         })

@@ -150,9 +150,8 @@ def fetch_valorant(source_args: dict, days_ahead: int) -> list[Event]:
             seen.add(match_id)
             end = start + timedelta(hours=2)  # typical VCT BO3 length
             event_label = label if region == "International" else f"{label} — {region}"
-            subtitle = (
-                f"{event_label} — {m['stage']}" if m.get("stage") else event_label
-            )
+            stage = m.get("stage", "")
+            subtitle = f"{event_label} — {stage}" if stage else event_label
             out.append(Event(
                 league=league_id,
                 source_id=match_id,
@@ -167,7 +166,9 @@ def fetch_valorant(source_args: dict, days_ahead: int) -> list[Event]:
                 extra={
                     "event": label,
                     "region": region,
-                    "stage": m.get("stage", ""),
+                    "stage": stage,
+                    # VLR labels bracket matches "Playoffs: Upper Final" etc.
+                    **({"playoff": stage} if "playoff" in stage.lower() else {}),
                     "team_a": m["team_a"],
                     "team_b": m["team_b"],
                     # Same shape ESPN's fetcher uses (name/abbr/home_away) —

@@ -712,6 +712,7 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   align-items: center;
   margin-bottom: 12px;
 }
+.popover-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
 .popover-pill {
   display: inline-block;
   padding: 4px 10px;
@@ -722,6 +723,10 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
+.popover-pill[hidden] { display: none; }
+/* Postseason round ("🏆 ALDS - Game 1"), gold like the favorite border so
+   the two "this one matters" cues share a color. */
+.popover-pill-playoff { background: #FBBF24; color: #1F2937; }
 .icon-btn {
   background: none;
   border: none;

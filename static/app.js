@@ -564,7 +564,7 @@
       info.el.classList.toggle('fc-event-favorite', isFav);
 
       // Tooltip with full title (for narrow time-grid tiles)
-      const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
+      const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.playoff ? '\n\u{1F3C6} ' + ep.playoff : ''}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
       info.el.setAttribute('title', tip);
 
       // Time grid: solid color, white text
@@ -594,11 +594,14 @@
         const titleCell = info.el.querySelector('.fc-list-event-title');
         if (titleCell && !titleCell.dataset.enriched) {
           titleCell.dataset.enriched = '1';
-          const fullTitle = ep.fullTitle || info.event.title;
+          // The agenda shows the full matchup, which doesn't carry the tile
+          // title's trophy — add it here, and name the round on the sub line.
+          const fullTitle = (ep.playoff ? '\u{1F3C6} ' : '') + (ep.fullTitle || info.event.title);
           const pill = ep.leagueName
             ? `<span class="lst-pill" style="background:${bg};">${ep.leagueName}</span>`
             : '';
           const subParts = [];
+          if (ep.playoff) subParts.push(ep.playoff);
           if (ep.subtitle) subParts.push(ep.subtitle);
           if (ep.broadcast) subParts.push(ep.broadcast);
           const sub = subParts.length ? `<div class="lst-sub">${subParts.join(' · ')}</div>` : '';
@@ -1071,6 +1074,9 @@
     const ep = event.extendedProps || {};
     document.getElementById('popover-league').textContent = ep.leagueName || ep.league || '';
     document.getElementById('popover-league').style.background = leagueColor[ep.league] || '#6B7280';
+    const playoffPill = document.getElementById('popover-playoff');
+    playoffPill.textContent = ep.playoff ? `\u{1F3C6} ${ep.playoff}` : '';
+    playoffPill.hidden = !ep.playoff;
     document.getElementById('popover-title').textContent = ep.fullTitle || event.title || '';
     document.getElementById('popover-subtitle').textContent = ep.subtitle || '';
 

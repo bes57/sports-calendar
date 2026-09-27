@@ -123,6 +123,12 @@ def _group_by_league(events: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
+def _playoff_mark(e: dict) -> str:
+    """'🏆 ' for a postseason game (extra.playoff, set by the fetcher), else ''.
+    Text, HTML and SMS digests only — the PNG's bitmap font has no emoji."""
+    return "\U0001F3C6 " if (e.get("extra") or {}).get("playoff") else ""
+
+
 def build_digest_text(day_offset: int = 0) -> str:
     start, end, day = _day_window_utc(day_offset)
     events = get_events(start_iso=start, end_iso=end)
@@ -138,7 +144,7 @@ def build_digest_text(day_offset: int = 0) -> str:
         lines.append(f"{lg.name} — {len(es)} event{'s' if len(es) != 1 else ''}")
         for e in es:
             t = _format_time(e["start_utc"])
-            line = f"  {t}  {e['title']}"
+            line = f"  {t}  {_playoff_mark(e)}{e['title']}"
             extras = []
             if e.get("broadcast"):
                 extras.append(e["broadcast"])
@@ -188,7 +194,7 @@ def build_digest_html(day_offset: int = 0) -> str:
             parts.append(
                 f"<li style='padding: 6px 0; border-bottom: 1px solid #F3F4F6;'>"
                 f"<strong style='display: inline-block; width: 90px; color: #374151;'>{t}</strong>"
-                f"{link_open}{e['title']}{link_close}{extra_html}"
+                f"{link_open}{_playoff_mark(e)}{e['title']}{link_close}{extra_html}"
                 f"</li>"
             )
         parts.append("</ul>")
@@ -371,7 +377,7 @@ def build_digest_sms(day_offset: int = 0) -> str:
         for e in all_day:
             lg = by_id(e["league"])
             tag = lg.name if lg else e["league"].upper()
-            lines.append(f"• {e['title']}  ({tag})")
+            lines.append(f"• {_playoff_mark(e)}{e['title']}  ({tag})")
 
     if timed:
         lines.append("")
@@ -384,7 +390,7 @@ def build_digest_sms(day_offset: int = 0) -> str:
             tag = lg.name if lg else e["league"].upper()
             extra = e.get("extra") or {}
             title = extra.get("short_name") or e["title"]
-            lines.append(f"{t}  {title}  ({tag})")
+            lines.append(f"{t}  {_playoff_mark(e)}{title}  ({tag})")
 
     return "\n".join(lines)
 

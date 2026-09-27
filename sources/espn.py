@@ -18,6 +18,7 @@ Parser variants exported:
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -333,6 +334,13 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
             end_iso = _normalize_end(start, end, sport, duration_hours)
         title = e.get("name") or e.get("shortName") or "Untitled event"
         subtitle = e.get("description") or comp.get("description") or ""
+        extra = {
+            "short_name": e.get("shortName"),
+            "competitors": _competitors(comp),
+        }
+        playoff = _postseason(e, comp)
+        if playoff:
+            extra["playoff"] = playoff  # round label; the calendar flags the tile
         out.append(Event(
             league=league_id,
             source_id=str(e["id"]),
@@ -344,10 +352,7 @@ def fetch_espn(source_args: dict, days_ahead: int) -> list[Event]:
             broadcast=_broadcast(comp),
             url=_event_url(e),
             status=_status(comp),
-            extra={
-                "short_name": e.get("shortName"),
-                "competitors": _competitors(comp),
-            },
+            extra=extra,
             all_day=multi_day,
         ))
     if source_args.get("gameday_links"):
@@ -539,6 +544,74 @@ def _last_name(name: str) -> str:
     a reader scans for, and full names are still on the popover."""
     parts = (name or "").split()
     return parts[-1] if parts else (name or "")
+
+# Soccer seasons aren't typed 1/2/3 — `season.type` is a season id and the
+# slug names the stage — so the knockout stages are recognised by name.
+# Seen: eastern-conference-playoffs---round-one, mls-cup (MLS);
+# knockout-round-playoffs, round-of-16, quarterfinals, semifinals, final
+# (UCL); round-of-32 … 3rd-place-match (World Cup). League play is
+# regular-season / league-phase / 2025-26-laliga, none of which match.
+_POSTSEASON_SLUG_RE = re.compile(
+    r"playoff|play-in|post-?season|round-of|knockout|quarterfinal|semifinal"
+    r"|final|3rd-place|third-place|mls-cup|wild-?card"
+)
+# Cricket matches carry the stage in the description: "Qualifier 1 (N),
+# Indian Premier League at Dharamsala, May 26 2026" vs "70th Match (N), …".
+_CRICKET_STAGE_RE = re.compile(r"^(qualifier|eliminator|semi|final|playoff)", re.I)
+_SLUG_ACRONYMS = {"mls", "nba", "nhl", "nfl", "mlb", "wnba", "uefa", "fifa", "ucl"}
+_SLUG_SMALL_WORDS = {"of", "the", "and", "at", "in", "vs"}
+
+
+def _postseason(e: dict, comp: dict) -> str | None:
+    """The round label for a postseason game ("ALDS - Game 1", "Wild Card
+    Playoffs", "Round of 16 · 2nd Leg"), or None for anything else.
+
+    US leagues type their seasons: 1 preseason, 2 regular, 3 postseason,
+    and the NBA's play-in is 5 while college baseball counts regionals
+    through the championship series as 3–6 — so 3 and up is postseason and
+    the note headline names the round. Conference tournaments and
+    conference title games stay type 2, which matches how ESPN files them.
+    """
+    season = e.get("season") or {}
+    stype = season.get("type")
+    slug = (season.get("slug") or "").lower()
+    notes = [n.get("headline") for n in (comp.get("notes") or []) if n.get("headline")]
+    if isinstance(stype, int) and not isinstance(stype, bool) and stype < 100:
+        if stype < 3:
+            return None
+        return notes[0] if notes else "Postseason"
+    if not slug:
+        # Cricket: season.type is the league id and there's no slug.
+        desc = (e.get("description") or comp.get("description") or "").split(",", 1)[0]
+        stage = re.sub(r"\s*\([^)]*\)\s*$", "", desc).strip()  # drop "(N)" / "(D/N)"
+        return stage if _CRICKET_STAGE_RE.match(stage) else None
+    if not _POSTSEASON_SLUG_RE.search(slug):
+        return None
+    label = _humanize_slug(slug)
+    # Two-legged ties note which leg this is ("1st Leg", "2nd Leg - X advance
+    # 3-1 on aggregate"); keep the leg, not the result.
+    leg = next((n.split(" - ")[0] for n in notes if n.lower().startswith(("1st leg", "2nd leg"))), None)
+    return f"{label} · {leg}" if leg else label
+
+
+def _humanize_slug(slug: str) -> str:
+    """'eastern-conference-playoffs---round-one' -> 'Eastern Conference
+    Playoffs - Round One'; 'round-of-16' -> 'Round of 16'; 'mls-cup' -> 'MLS Cup'."""
+    parts = []
+    for part in slug.split("---"):
+        words = []
+        for i, w in enumerate(part.split("-")):
+            if not w:
+                continue
+            if w in _SLUG_ACRONYMS:
+                words.append(w.upper())
+            elif i > 0 and w in _SLUG_SMALL_WORDS:
+                words.append(w)
+            else:
+                words.append(w[:1].upper() + w[1:])
+        parts.append(" ".join(words))
+    return " - ".join(p for p in parts if p)
+
 
 def _competitors(comp: dict) -> list[dict]:
     out = []
