@@ -781,7 +781,7 @@ body[data-view="dayGridMonth"] .fc-daygrid-event .fc-event-main {
   letter-spacing: 0.07em;
 }
 .popover-pill[hidden] { display: none; }
-/* Postseason round ("🏆 ALDS - Game 1"), gold like the favorite border so
+/* Postseason round (trophy icon + "ALDS - Game 1"), gold like the favorite border so
    the two "this one matters" cues share a color. */
 .popover-pill-playoff { background: #FBBF24; color: #1F2937; }
 .icon-btn {
