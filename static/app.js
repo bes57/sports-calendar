@@ -5,6 +5,9 @@
 
   const STORAGE_KEY = 'sports-cal-leagues';
   const VIEW_KEY = 'sports-cal-view';
+  // Inline trophy (an SVG mask over currentColor — see .trophy-icon in
+  // app.css) that leads a postseason game's title wherever it's plain HTML.
+  const TROPHY_ICON = '<span class="trophy-icon" aria-hidden="true"></span>';
   const TZ_KEY = 'sports-cal-tz';
   // Visible range, kept for this tab only, so that Back (after "Both" turned
   // this tab into Kalshi) lands on the dates you were looking at.
@@ -571,7 +574,7 @@
       info.el.classList.toggle('fc-event-playoff', !!ep.playoff && info.isStart !== false);
 
       // Tooltip with full title (for narrow time-grid tiles)
-      const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.playoff ? '\n\u{1F3C6} ' + ep.playoff : ''}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
+      const tip = `${ep.leagueName ? '[' + ep.leagueName + '] ' : ''}${ep.fullTitle || info.event.title}${ep.playoff ? '\n' + ep.playoff : ''}${ep.broadcast ? '\n' + ep.broadcast : ''}`;
       info.el.setAttribute('title', tip);
 
       // Time grid: solid color, white text
@@ -601,9 +604,9 @@
         const titleCell = info.el.querySelector('.fc-list-event-title');
         if (titleCell && !titleCell.dataset.enriched) {
           titleCell.dataset.enriched = '1';
-          // The agenda shows the full matchup, which doesn't carry the tile
-          // title's trophy — add it here, and name the round on the sub line.
-          const fullTitle = (ep.playoff ? '\u{1F3C6} ' : '') + (ep.fullTitle || info.event.title);
+          // Agenda rows have no band, so the trophy icon leads the matchup
+          // and the round goes on the sub line.
+          const fullTitle = (ep.playoff ? TROPHY_ICON + ' ' : '') + (ep.fullTitle || info.event.title);
           const pill = ep.leagueName
             ? `<span class="lst-pill" style="background:${bg};">${ep.leagueName}</span>`
             : '';
@@ -872,7 +875,7 @@
       btn.innerHTML = `
         <span class="team-jump-result-dot" style="background:${r.color};"></span>
         <span class="team-jump-result-info">
-          <span class="team-jump-result-title">${r.title}</span>
+          <span class="team-jump-result-title">${r.playoff ? TROPHY_ICON + ' ' : ''}${r.title}</span>
           <span class="team-jump-result-date">${formatTeamJumpWhen(r.start, r.allDay)}</span>
         </span>
       `;
@@ -1082,7 +1085,13 @@
     document.getElementById('popover-league').textContent = ep.leagueName || ep.league || '';
     document.getElementById('popover-league').style.background = leagueColor[ep.league] || '#6B7280';
     const playoffPill = document.getElementById('popover-playoff');
-    playoffPill.textContent = ep.playoff ? `\u{1F3C6} ${ep.playoff}` : '';
+    playoffPill.replaceChildren();
+    if (ep.playoff) {
+      const icon = document.createElement('span');
+      icon.className = 'trophy-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      playoffPill.append(icon, ` ${ep.playoff}`);
+    }
     playoffPill.hidden = !ep.playoff;
     document.getElementById('popover-title').textContent = ep.fullTitle || event.title || '';
     document.getElementById('popover-subtitle').textContent = ep.subtitle || '';

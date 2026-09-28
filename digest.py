@@ -123,10 +123,11 @@ def _group_by_league(events: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def _playoff_mark(e: dict) -> str:
-    """'🏆 ' for a postseason game (extra.playoff, set by the fetcher), else ''.
-    Text, HTML and SMS digests only — the PNG's bitmap font has no emoji."""
-    return "\U0001F3C6 " if (e.get("extra") or {}).get("playoff") else ""
+def _playoff(e: dict) -> str | None:
+    """The round for a postseason game ("ALDS - Game 1"), set by the fetcher
+    in extra.playoff; None otherwise. The digests name it in the parenthetical
+    rather than drawing a symbol."""
+    return (e.get("extra") or {}).get("playoff") or None
 
 
 def build_digest_text(day_offset: int = 0) -> str:
@@ -144,8 +145,10 @@ def build_digest_text(day_offset: int = 0) -> str:
         lines.append(f"{lg.name} — {len(es)} event{'s' if len(es) != 1 else ''}")
         for e in es:
             t = _format_time(e["start_utc"])
-            line = f"  {t}  {_playoff_mark(e)}{e['title']}"
+            line = f"  {t}  {e['title']}"
             extras = []
+            if _playoff(e):
+                extras.append(_playoff(e))
             if e.get("broadcast"):
                 extras.append(e["broadcast"])
             if e.get("subtitle") and e["subtitle"] not in e["title"]:
@@ -184,6 +187,11 @@ def build_digest_html(day_offset: int = 0) -> str:
         for e in es:
             t = _format_time(e["start_utc"])
             extras = []
+            if _playoff(e):
+                extras.append(
+                    "<span style='background: #FBBF24; color: #1F2937; border-radius: 99px; "
+                    f"padding: 1px 8px; font-size: 11px; font-weight: 700;'>{_playoff(e)}</span>"
+                )
             if e.get("broadcast"):
                 extras.append(f"<span style='color: #6B7280;'>{e['broadcast']}</span>")
             if e.get("subtitle") and e["subtitle"] not in e["title"]:
@@ -194,7 +202,7 @@ def build_digest_html(day_offset: int = 0) -> str:
             parts.append(
                 f"<li style='padding: 6px 0; border-bottom: 1px solid #F3F4F6;'>"
                 f"<strong style='display: inline-block; width: 90px; color: #374151;'>{t}</strong>"
-                f"{link_open}{_playoff_mark(e)}{e['title']}{link_close}{extra_html}"
+                f"{link_open}{e['title']}{link_close}{extra_html}"
                 f"</li>"
             )
         parts.append("</ul>")
@@ -377,7 +385,7 @@ def build_digest_sms(day_offset: int = 0) -> str:
         for e in all_day:
             lg = by_id(e["league"])
             tag = lg.name if lg else e["league"].upper()
-            lines.append(f"• {_playoff_mark(e)}{e['title']}  ({tag})")
+            lines.append(f"• {e['title']}  ({tag})")
 
     if timed:
         lines.append("")
@@ -390,7 +398,9 @@ def build_digest_sms(day_offset: int = 0) -> str:
             tag = lg.name if lg else e["league"].upper()
             extra = e.get("extra") or {}
             title = extra.get("short_name") or e["title"]
-            lines.append(f"{t}  {_playoff_mark(e)}{title}  ({tag})")
+            if _playoff(e):
+                tag = f"{tag} · {_playoff(e)}"
+            lines.append(f"{t}  {title}  ({tag})")
 
     return "\n".join(lines)
 

@@ -39,10 +39,6 @@ BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="K-Cal")
 
-# Prefix for postseason games where a title is rendered as plain text
-# (team search); calendar tiles get a gold band instead (app.css).
-PLAYOFF_MARK = "\U0001F3C6"  # 🏆
-
 
 class _NoCacheStaticFiles(StaticFiles):
     """StaticFiles wrapper that forbids browser caching. Without this, a soft
@@ -288,7 +284,8 @@ async def api_team_search(q: str = Query(..., min_length=1)):
             "league": r["league"],
             "leagueName": lg.name if lg else r["league"],
             "color": lg.color if lg else "#6B7280",
-            "title": (f"{PLAYOFF_MARK} " if extra.get("playoff") else "") + r["title"],
+            "title": r["title"],
+            "playoff": extra.get("playoff") or None,  # the round; the list draws the trophy
             "start": _normalize_iso(r["start_utc"]),
             "allDay": bool(r.get("all_day")),
         })

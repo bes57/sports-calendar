@@ -459,6 +459,22 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
   pointer-events: none;
   z-index: 2;
 }
+/* The trophy is one filled SVG silhouette, not the emoji, so it renders the
+   same on every platform and at 10px. `.trophy-icon` masks it over
+   currentColor for use inline (popover pill, agenda, team search); the
+   time-grid band bakes the dark fill in because the band itself is gold. */
+:root {
+  --trophy-svg: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M5 2h14v7a7 7 0 0 1-14 0V2zM5 4H3a2 2 0 0 0-2 2v2a5 5 0 0 0 5 5v-2a3 3 0 0 1-3-3V6h2V4zm14 0h2a2 2 0 0 1 2 2v2a5 5 0 0 1-5 5v-2a3 3 0 0 0 3-3V6h-2V4zM10 15h4v4h-4zM7 19h10a1 1 0 0 1 1 1v2H6v-2a1 1 0 0 1 1-1z'/></svg>");
+}
+.trophy-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  background-color: currentColor;
+  -webkit-mask: var(--trophy-svg) center / contain no-repeat;
+          mask: var(--trophy-svg) center / contain no-repeat;
+}
 /* Postseason tiles: a gold band across the top carrying the trophy. ::after
    so it coexists with the favorite ring's ::before, and — same lesson as the
    ring — no position:relative here; the tile is already FC's absolute box.
@@ -467,17 +483,13 @@ body.kcal-navigating .fc-event:not(.fc-list-event) {
    day) below it. On a skinny Week-view pill the trophy is mostly clipped
    and what's left is a gold cap, which still reads at a glance. */
 .fc-timegrid-event.fc-event-playoff::after {
-  content: '\1F3C6';
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 14px;
-  line-height: 14px;
-  font-size: 9px;
-  text-align: center;
-  background: #FBBF24;
-  color: #1F2937;
+  background: #FBBF24 url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%231F2937' d='M5 2h14v7a7 7 0 0 1-14 0V2zM5 4H3a2 2 0 0 0-2 2v2a5 5 0 0 0 5 5v-2a3 3 0 0 1-3-3V6h2V4zm14 0h2a2 2 0 0 1 2 2v2a5 5 0 0 1-5 5v-2a3 3 0 0 0 3-3V6h-2V4zM10 15h4v4h-4zM7 19h10a1 1 0 0 1 1 1v2H6v-2a1 1 0 0 1 1-1z'/></svg>") center / 10px 10px no-repeat;
   pointer-events: none;
   z-index: 1;
 }
@@ -494,7 +506,15 @@ body[data-view="timeGridDay"] .fc-timegrid-event.fc-event-playoff {
   padding-top: 4px;
 }
 .fc-daygrid-event.fc-event-playoff .fc-event-title::before {
-  content: '\1F3C6\00A0';
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  background-color: #FBBF24;
+  -webkit-mask: var(--trophy-svg) center / contain no-repeat;
+          mask: var(--trophy-svg) center / contain no-repeat;
 }
 /* Table rows can't take a ring the same way — an animated stripe on the
    left edge reads the same at a glance. No mask needed: it's meant to be a
