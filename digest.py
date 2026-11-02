@@ -116,6 +116,28 @@ def _format_time_compact(iso: str) -> str:
         return iso
 
 
+# College basketball in the digest: ranked games only. Until Nov 2026 the
+# push only ever carried NCAAM/NCAAW games with a top-25 side, by accident —
+# ESPN's default scoreboard is the Top 25 view (see leagues.py). The feed is
+# now all of Division I (~180 men's games on opening night), so keep the push
+# at its old size on purpose, matching the calendar's default "Only ranked
+# NCAA games". Football is left as it has always been: every Division I
+# game, FCS included.
+_RANKED_ONLY_LEAGUES = frozenset({"ncaam", "ncaaw"})
+
+
+def _ranked(e: dict) -> bool:
+    competitors = (e.get("extra") or {}).get("competitors") or []
+    return any(c.get("rank") for c in competitors)
+
+
+def _digest_events(start: str, end: str) -> list[dict]:
+    return [
+        e for e in get_events(start_iso=start, end_iso=end)
+        if e["league"] not in _RANKED_ONLY_LEAGUES or _ranked(e)
+    ]
+
+
 def _group_by_league(events: list[dict]) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     for e in events:
@@ -132,7 +154,7 @@ def _playoff(e: dict) -> str | None:
 
 def build_digest_text(day_offset: int = 0) -> str:
     start, end, day = _day_window_utc(day_offset)
-    events = get_events(start_iso=start, end_iso=end)
+    events = _digest_events(start, end)
     if not events:
         return f"{day.strftime('%A, %B %-d')}\n\nNo events today.\n"
 
@@ -162,7 +184,7 @@ def build_digest_text(day_offset: int = 0) -> str:
 
 def build_digest_html(day_offset: int = 0) -> str:
     start, end, day = _day_window_utc(day_offset)
-    events = get_events(start_iso=start, end_iso=end)
+    events = _digest_events(start, end)
     title = day.strftime("%A, %B %-d, %Y")
     if not events:
         return f"""<html><body style="font-family: -apple-system, system-ui, sans-serif;">
@@ -248,7 +270,7 @@ def build_digest_image(day_offset: int = 0) -> bytes:
     rounded colored pill (using the league's calendar color), columns are
     monospace-aligned, and the title sits above. Returns raw PNG bytes."""
     start, end, day = _sports_day_window_utc(day_offset)
-    events = get_events(start_iso=start, end_iso=end)
+    events = _digest_events(start, end)
 
     all_day = [e for e in events if e.get("all_day")]
     timed = sorted(
@@ -363,7 +385,7 @@ def build_digest_sms(day_offset: int = 0) -> str:
     monospace which keeps the columns aligned without us needing markdown
     (which iOS leaves as literal characters)."""
     start, end, day = _sports_day_window_utc(day_offset)
-    events = get_events(start_iso=start, end_iso=end)
+    events = _digest_events(start, end)
     header = day.strftime("%a %b %-d")
 
     if not events:
