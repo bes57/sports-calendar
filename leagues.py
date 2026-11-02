@@ -81,14 +81,26 @@ LEAGUES: list[League] = [
     League(
         id="ncaam", name="NCAAM", full_name="NCAA Men's Basketball",
         color="#4338CA",  # indigo-700
-        source="espn", source_args={"sport": "basketball", "league": "mens-college-basketball"},
+        source="espn", source_args={
+            "sport": "basketball",
+            "league": "mens-college-basketball",
+            # Without `groups` ESPN's college basketball scoreboard is the
+            # Top 25 view: only games with a ranked side (~150 a month, not
+            # ~1,200), so the sidebar's "ranked" toggle has nothing to hide
+            # and unranked games never appear at all. 50 is all of Division I.
+            "groups": "50",
+        },
         duration_hours=2.5,
         group="Basketball",
     ),
     League(
         id="ncaaw", name="NCAAW", full_name="NCAA Women's Basketball",
         color="#0891B2",  # cyan-600
-        source="espn", source_args={"sport": "basketball", "league": "womens-college-basketball"},
+        source="espn", source_args={
+            "sport": "basketball",
+            "league": "womens-college-basketball",
+            "groups": "50",  # all of Division I; see NCAAM above
+        },
         duration_hours=2.5,
         group="Basketball",
     ),
